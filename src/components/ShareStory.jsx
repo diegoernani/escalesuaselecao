@@ -54,12 +54,10 @@ export default function ShareStory({ formation, positions, lineup }) {
       style={{ width: 1080, height: 1920 }}
       className="relative overflow-hidden bg-[#03123d] text-white"
     >
-      {/* Fundo */}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,#04144a_0%,#03123d_55%,#021033_100%)]" />
       <div className="absolute inset-0 opacity-[0.18] bg-[repeating-linear-gradient(115deg,transparent_0px,transparent_24px,rgba(255,255,255,0.08)_25px,transparent_26px,transparent_80px)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_30%),radial-gradient(circle_at_bottom,rgba(250,204,21,0.03),transparent_32%)]" />
 
-      {/* Detalhes amarelos */}
       <div className="absolute left-[74px] top-[44px] h-[270px] w-[4px] rotate-[33deg] rounded-full bg-yellow-400/70" />
       <div className="absolute right-[-120px] top-[318px] h-[178px] w-[330px] rounded-tl-[180px] border-l-[28px] border-t-[28px] border-yellow-400/55" />
       <div className="absolute left-[-112px] bottom-[-18px] h-[210px] w-[270px] rounded-tr-[180px] border-r-[26px] border-t-[26px] border-yellow-400/55" />
@@ -71,19 +69,19 @@ export default function ShareStory({ formation, positions, lineup }) {
       <AccentSlashes className="absolute left-[112px] bottom-[280px] scale-90" />
       <AccentSlashes className="absolute right-[112px] bottom-[280px] scale-90" />
 
-      {/* Título */}
       <div className="relative z-10 px-16 pt-[82px] text-center">
         <h1 className="mx-auto max-w-[980px] text-[84px] font-black leading-[0.96] tracking-tight text-white">
           Minha escalação no
           <span className="mt-2 block text-[92px] text-yellow-400">Escale Sua Seleção</span>
           <span className="mt-2 block">é essa:</span>
         </h1>
-
         <div className="mx-auto mt-8 h-[7px] w-[320px] rounded-full bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.5)]" />
       </div>
 
-      {/* Card do campo */}
-      <div className="relative z-10 mx-auto mt-[40px] w-[860px] rounded-[44px] border-2 border-yellow-400 bg-[linear-gradient(180deg,rgba(6,18,61,0.98),rgba(4,14,47,0.98))] p-8 shadow-[0_0_38px_rgba(250,204,21,0.3)]">
+      <div
+        className="relative z-10 rounded-[44px] border-2 border-yellow-400 bg-[linear-gradient(180deg,rgba(6,18,61,0.98),rgba(4,14,47,0.98))] p-8 shadow-[0_0_38px_rgba(250,204,21,0.3)]"
+        style={{ width: 860, marginTop: 40, marginLeft: 110, marginRight: 110 }}
+      >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[32px] font-black leading-none">Campo</h2>
@@ -91,59 +89,54 @@ export default function ShareStory({ formation, positions, lineup }) {
               Monte seu time ideal no esquema {formation}.
             </p>
           </div>
-
           <div className="rounded-full bg-[#081942] px-5 py-3 text-[14px] font-bold text-slate-100">
             Clique na posição para colocar o jogador
           </div>
         </div>
 
-        {/* Aqui é a única parte dinâmica */}
-        <div className="relative mx-auto aspect-[10/14] w-[680px] overflow-hidden rounded-[36px] border-4 border-white/85 bg-emerald-700 shadow-inner">
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:78px_78px]" />
-          <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 bg-white/85" />
-          <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/85" />
-          <div className="absolute left-1/2 top-0 h-[120px] w-64 -translate-x-1/2 rounded-b-3xl border-x-4 border-b-4 border-white/85" />
-          <div className="absolute bottom-0 left-1/2 h-[120px] w-64 -translate-x-1/2 rounded-t-3xl border-x-4 border-t-4 border-white/85" />
+        <div style={{ width: 680, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div className="relative aspect-[10/14] overflow-hidden rounded-[36px] border-4 border-white/85 bg-emerald-700 shadow-inner">
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:78px_78px]" />
+            <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 bg-white/85" />
+            <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/85" />
+            <div className="absolute left-1/2 top-0 h-[120px] w-64 -translate-x-1/2 rounded-b-3xl border-x-4 border-b-4 border-white/85" />
+            <div className="absolute bottom-0 left-1/2 h-[120px] w-64 -translate-x-1/2 rounded-t-3xl border-x-4 border-t-4 border-white/85" />
 
-          {positions.map((position) => {
-            const player = lineup[position.id];
-
-            return (
-              <div
-                key={position.id}
-                className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[20px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-3 text-center shadow-lg shadow-black/35"
-                style={{
-                  left: `${position.x}%`,
-                  top: `${position.y}%`,
-                  minWidth: 126,
-                }}
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-400 text-[22px] font-black text-slate-950">
-                  {player ? initials(player) : position.label}
+            {positions.map((position) => {
+              const player = lineup[position.id];
+              return (
+                <div
+                  key={position.id}
+                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[20px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-3 text-center shadow-lg shadow-black/35"
+                  style={{
+                    left: `${position.x}%`,
+                    top: `${position.y}%`,
+                    minWidth: 126,
+                  }}
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-400 text-[22px] font-black text-slate-950">
+                    {player ? initials(player) : position.label}
+                  </div>
+                  <div className="max-w-[114px] truncate text-[13px] font-black text-white">
+                    {player || position.label}
+                  </div>
                 </div>
-
-                <div className="max-w-[114px] truncate text-[13px] font-black text-white">
-                  {player || position.label}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* CTA */}
       <div className="relative z-10 mx-auto mt-[44px] flex w-[742px] items-center gap-8 rounded-[38px] bg-yellow-400 px-9 py-7 text-slate-950 shadow-[0_0_28px_rgba(250,204,21,0.38)]">
         <div className="flex h-[96px] w-[96px] items-center justify-center rounded-full bg-[#03123d] shadow-inner">
           <ShareArrowIcon />
         </div>
-
         <p className="text-[44px] font-black leading-[1.02]">
           Faça a sua também
           <span className="block">e compartilhe.</span>
         </p>
       </div>
 
-      {/* Rodapé / logotipo */}
       <div className="relative z-10 mt-[44px] flex items-center justify-center gap-4">
         <LogoMark />
         <div className="text-[34px] font-black tracking-tight text-white">
