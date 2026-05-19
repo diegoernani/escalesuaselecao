@@ -16,15 +16,15 @@ const formations = {
   '3-5-2': [[50,91,'GOL','gk'],[30,73,'ZAG','cb1'],[50,78,'ZAG','cb2'],[70,73,'ZAG','cb3'],[14,50,'ALA','lwb'],[35,52,'MC','cm1'],[50,59,'VOL','cdm'],[65,52,'MC','cm2'],[86,50,'ALA','rwb'],[40,23,'ATA','st1'],[60,23,'ATA','st2']],
 };
 
-const rankings = {
-  formations: [['4-3-3',1842], ['4-4-2',938], ['4-5-1',711], ['3-5-2',524]],
-  positions: { GOL: [['Alisson',1432], ['Ederson',881], ['Weverton',277]], LE: [['Alex Sandro',904], ['Douglas Santos',744]], ZAG: [['Marquinhos',1510], ['Gabriel Magalhães',1324], ['Bremer',993]], LD: [['Danilo',1138], ['Wesley',690]], VOL: [['Casemiro',1211], ['Bruno Guimarães',1048], ['Fabinho',812]], MC: [['Bruno Guimarães',1295], ['Lucas Paquetá',1167], ['Danilo S.',508]], PE: [['Vini Jr.',1710], ['Gabriel Martinelli',887]], ATA: [['Neymar Jr.',1520], ['Endrick',1403], ['Matheus Cunha',920]], PD: [['Raphinha',1299], ['Luiz Henrique',808], ['Rayan',477]] },
+const fallbackRankings = {
+  formations: [['4-3-3',0], ['4-4-2',0], ['4-5-1',0], ['3-5-2',0]],
+  positions: { GOL: [], LE: [], ZAG: [], LD: [], VOL: [], MC: [], PE: [], ATA: [], PD: [], ME: [], MD: [], ALA: [] },
 };
 
 const categoryByPlayer = Object.fromEntries(Object.entries(players).flatMap(([category, names]) => names.map((name) => [name, category])));
 const toPosition = ([x, y, label, id]) => ({ x, y, label, id });
 const initials = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-const formatVotes = (votes) => votes.toLocaleString('pt-BR');
+const formatVotes = (votes) => Number(votes || 0).toLocaleString('pt-BR');
 
 function userName(user) {
   return user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Torcedor';
@@ -44,6 +44,27 @@ async function shareOrCopy(text) {
   return (await copyText(text)) ? 'Compartilhamento bloqueado pelo navegador. Texto copiado.' : text;
 }
 
+function buildRankingData(formationRows = [], playerRows = []) {
+  const formationVotes = new Map(formationRows.map((row) => [row.formation, Number(row.votes || 0)]));
+  const next = {
+    formations: Object.keys(formations).map((formation) => [formation, formationVotes.get(formation) || 0]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    positions: { GOL: [], LE: [], ZAG: [], LD: [], VOL: [], MC: [], PE: [], ATA: [], PD: [], ME: [], MD: [], ALA: [] },
+  };
+
+  playerRows.forEach((row) => {
+    if (!next.positions[row.position]) next.positions[row.position] = [];
+    next.positions[row.position].push([row.player_name, Number(row.votes || 0)]);
+  });
+
+  Object.keys(next.positions).forEach((position) => {
+    next.positions[position] = next.positions[position]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3);
+  });
+
+  return next;
+}
+
 export default function App() {
   const [page, setPage] = useState('escale');
   const [user, setUser] = useState(null);
@@ -53,6 +74,8 @@ export default function App() {
   const [lineup, setLineup] = useState({});
   const [saved, setSaved] = useState(false);
   const [status, setStatus] = useState('');
+  const [rankingData, setRankingData] = useState(fallbackRankings);
+  const [rankingStatus, setRankingStatus] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user || null));
@@ -60,12 +83,32 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (user) loadRankings();
+  }, [user]);
+
   const positions = useMemo(() => formations[formation].map(toPosition), [formation]);
   const selectedPlayers = useMemo(() => Object.values(lineup).filter(Boolean), [lineup]);
   const selectedSet = useMemo(() => new Set(selectedPlayers), [selectedPlayers]);
   const complete = selectedPlayers.length === 11;
   const shareText = useMemo(() => buildShareText(formation, positions, lineup), [formation, positions, lineup]);
   const availablePlayers = useMemo(() => Object.entries(players).map(([category, names]) => ({ category, names: names.filter((name) => !selectedSet.has(name)) })), [selectedSet]);
+
+  async function loadRankings() {
+    setRankingStatus('Carregando ranking...');
+    const [{ data: formationRows, error: formationError }, { data: playerRows, error: playerError }] = await Promise.all([
+      supabase.from('ranking_formations').select('formation, votes'),
+      supabase.from('ranking_players_by_position').select('position, player_name, votes'),
+    ]);
+
+    if (formationError || playerError) {
+      setRankingStatus(`Não foi possível carregar o ranking: ${(formationError || playerError).message}`);
+      return;
+    }
+
+    setRankingData(buildRankingData(formationRows || [], playerRows || []));
+    setRankingStatus('');
+  }
 
   function resetLineup(nextFormation = formation) {
     setFormation(nextFormation); setLineup({}); setSelectedPlayer(null); setSaved(false); setStatus('');
@@ -95,16 +138,17 @@ export default function App() {
     const { error: playersError } = await supabase.from('lineup_players').insert(rows);
     if (playersError) { setStatus(`Escalação criada, mas jogadores não foram salvos: ${playersError.message}`); return; }
     setSaved(true); setStatus('Escalação salva no Supabase. Seu voto entrou no ranking.');
+    await loadRankings();
   }
 
   async function signOut() {
-    await supabase.auth.signOut(); setUser(null); setSaved(false);
+    await supabase.auth.signOut(); setUser(null); setSaved(false); setRankingData(fallbackRankings);
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <Header page={page} setPage={setPage} user={user} signOut={signOut} openAuth={() => setAuthOpen(true)} count={selectedPlayers.length} formation={formation} />
-      {page === 'escale' ? <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 md:grid-cols-[370px_1fr] md:px-8"><aside className="space-y-5"><Panel title="Formação"><div className="grid grid-cols-2 gap-2">{Object.keys(formations).map((item) => <button key={item} onClick={() => resetLineup(item)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${formation === item ? 'bg-yellow-400 text-slate-950' : 'bg-slate-900 text-slate-200 hover:bg-slate-800'}`}>{item}</button>)}</div></Panel><Panel title="Jogadores" subtitle={selectedPlayer ? `Selecionado: ${selectedPlayer}` : 'Clique em um jogador para escalar.'} action={<button onClick={() => resetLineup()} className="rounded-xl bg-slate-900 p-2 text-slate-200 hover:bg-slate-800"><RotateCcw size={18} /></button>}><div className="max-h-[620px] space-y-4 overflow-auto pr-1">{availablePlayers.map(({ category, names }) => <div key={category}><h3 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-yellow-300">{category}</h3><div className="grid grid-cols-2 gap-2">{names.map((name) => <button key={name} onClick={() => setSelectedPlayer(name)} className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold transition ${selectedPlayer === name ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/10 bg-slate-900 text-slate-100 hover:border-yellow-300/60 hover:bg-slate-800'}`}>{name}<span className="mt-1 block text-[10px] font-medium opacity-70">{categoryByPlayer[name]}</span></button>)}</div></div>)}</div></Panel></aside><Field positions={positions} lineup={lineup} selectedPlayer={selectedPlayer} formation={formation} clickPosition={clickPosition} removePlayer={removePlayer} /><LineupPanel positions={positions} lineup={lineup} complete={complete} saved={saved} status={status} saveLineup={saveLineup} shareText={shareText} setStatus={setStatus} /></main> : <RankingPage logged={Boolean(user)} openAuth={() => setAuthOpen(true)} setPage={setPage} />}
+      {page === 'escale' ? <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 md:grid-cols-[370px_1fr] md:px-8"><aside className="space-y-5"><Panel title="Formação"><div className="grid grid-cols-2 gap-2">{Object.keys(formations).map((item) => <button key={item} onClick={() => resetLineup(item)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${formation === item ? 'bg-yellow-400 text-slate-950' : 'bg-slate-900 text-slate-200 hover:bg-slate-800'}`}>{item}</button>)}</div></Panel><Panel title="Jogadores" subtitle={selectedPlayer ? `Selecionado: ${selectedPlayer}` : 'Clique em um jogador para escalar.'} action={<button onClick={() => resetLineup()} className="rounded-xl bg-slate-900 p-2 text-slate-200 hover:bg-slate-800"><RotateCcw size={18} /></button>}><div className="max-h-[620px] space-y-4 overflow-auto pr-1">{availablePlayers.map(({ category, names }) => <div key={category}><h3 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-yellow-300">{category}</h3><div className="grid grid-cols-2 gap-2">{names.map((name) => <button key={name} onClick={() => setSelectedPlayer(name)} className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold transition ${selectedPlayer === name ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/10 bg-slate-900 text-slate-100 hover:border-yellow-300/60 hover:bg-slate-800'}`}>{name}<span className="mt-1 block text-[10px] font-medium opacity-70">{categoryByPlayer[name]}</span></button>)}</div></div>)}</div></Panel></aside><Field positions={positions} lineup={lineup} selectedPlayer={selectedPlayer} formation={formation} clickPosition={clickPosition} removePlayer={removePlayer} /><LineupPanel positions={positions} lineup={lineup} complete={complete} saved={saved} status={status} saveLineup={saveLineup} shareText={shareText} setStatus={setStatus} /></main> : <RankingPage logged={Boolean(user)} openAuth={() => setAuthOpen(true)} setPage={setPage} rankingData={rankingData} rankingStatus={rankingStatus} reload={loadRankings} />}
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
     </div>
   );
@@ -126,9 +170,9 @@ function LineupPanel({ positions, lineup, complete, saved, status, saveLineup, s
   return <section className="rounded-3xl border border-white/10 bg-slate-950 p-4 md:col-start-2"><div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><h3 className="text-lg font-black">Minha escalação</h3><p className="text-xs text-slate-400">{saved ? 'Escalação salva. Seu voto entrou no ranking.' : 'Complete os 11 jogadores para salvar e compartilhar.'}</p></div><div className="flex flex-wrap gap-2"><button onClick={saveLineup} disabled={!complete} className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"><Save size={16} /> Salvar voto</button><button onClick={async () => setStatus(await shareOrCopy(shareText))} disabled={!complete} className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-sm font-black text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={16} /> Compartilhar</button></div></div><div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">{positions.map((position) => <div key={position.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm"><span className="font-black text-yellow-300">{position.label}</span><span className="mx-2 text-slate-500">•</span><span className="font-bold text-slate-100">{lineup[position.id] || 'Em aberto'}</span></div>)}</div><div className="mt-4 grid gap-2 md:grid-cols-3"><button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer')} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"><MessageCircle size={18} /> WhatsApp</button><button onClick={async () => setStatus((await copyText(shareText)) ? 'Texto copiado para colar no Instagram.' : shareText)} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-pink-500 px-4 py-3 text-sm font-black text-white hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={18} /> Instagram</button><button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer')} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-black text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={18} /> Facebook</button></div>{status && <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-xs font-bold text-yellow-100">{status}</div>}</section>;
 }
 
-function RankingPage({ logged, openAuth, setPage }) {
+function RankingPage({ logged, openAuth, setPage, rankingData, rankingStatus, reload }) {
   if (!logged) return <main className="mx-auto max-w-7xl px-4 py-6 md:px-8"><section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center shadow-2xl"><div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-400 text-slate-950"><LockKeyhole size={30} /></div><h2 className="text-3xl font-black">Ranking bloqueado</h2><p className="mx-auto mt-3 max-w-xl text-slate-300">Para ver os jogadores mais escalados por posição e a formação preferida da galera, faça login primeiro.</p><button onClick={openAuth} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300"><LogIn size={18} /> Fazer login para ver ranking</button></section></main>;
-  return <main className="mx-auto max-w-7xl px-4 py-6 md:px-8"><section className="space-y-6"><div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-slate-950"><BarChart3 size={14} /> Ranking liberado</div><h2 className="text-3xl font-black md:text-4xl">Mais escalados</h2><p className="mt-2 text-slate-300">Veja a formação mais votada e os jogadores preferidos por posição.</p></div><button onClick={() => setPage('escale')} className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">Montar minha seleção</button></div><div className="grid gap-6 lg:grid-cols-[360px_1fr]"><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Formações mais usadas</h3><div className="space-y-3">{rankings.formations.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={rankings.formations[0][1]} index={index} color="bg-yellow-400" />)}</div></div><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Jogadores por posição</h3><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Object.entries(rankings.positions).map(([position, items]) => <div key={position} className="rounded-3xl bg-slate-950 p-4"><div className="mb-3 flex items-center justify-between"><h4 className="text-lg font-black text-yellow-300">{position}</h4><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-400">Top 3</span></div><div className="space-y-3">{items.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={items[0][1]} index={index} compact color="bg-emerald-400" />)}</div></div>)}</div></div></div></section></main>;
+  return <main className="mx-auto max-w-7xl px-4 py-6 md:px-8"><section className="space-y-6"><div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-slate-950"><BarChart3 size={14} /> Ranking real</div><h2 className="text-3xl font-black md:text-4xl">Mais escalados</h2><p className="mt-2 text-slate-300">Dados carregados do Supabase com base nos votos salvos.</p>{rankingStatus && <p className="mt-2 text-sm font-bold text-yellow-200">{rankingStatus}</p>}</div><div className="flex gap-2"><button onClick={reload} className="rounded-2xl bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15">Atualizar</button><button onClick={() => setPage('escale')} className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">Montar minha seleção</button></div></div><div className="grid gap-6 lg:grid-cols-[360px_1fr]"><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Formações mais usadas</h3><div className="space-y-3">{rankingData.formations.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={Math.max(rankingData.formations[0]?.[1] || 1, 1)} index={index} color="bg-yellow-400" />)}</div></div><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Jogadores por posição</h3><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Object.entries(rankingData.positions).map(([position, items]) => <div key={position} className="rounded-3xl bg-slate-950 p-4"><div className="mb-3 flex items-center justify-between"><h4 className="text-lg font-black text-yellow-300">{position}</h4><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-400">Top 3</span></div><div className="space-y-3">{items.length ? items.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={Math.max(items[0]?.[1] || 1, 1)} index={index} compact color="bg-emerald-400" />) : <p className="text-sm text-slate-500">Sem votos ainda.</p>}</div></div>)}</div></div></div></section></main>;
 }
 
 function RankingBar({ label, votes, max, index, compact = false, color }) {
