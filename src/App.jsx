@@ -379,19 +379,16 @@ export default function App() {
               {positions.map((position) => {
                 const player = lineup[position.id];
                 return (
-                  <motion.button
+                  <button
                     key={`${formation}-${position.id}`}
-                    layout
                     onClick={() => (player ? removePlayer(position.id) : handlePositionClick(position.id))}
-                    className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition md:min-w-28 md:px-3 ${player ? 'border-yellow-300 bg-slate-950 text-white' : selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:scale-105' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`}
+                    className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition-colors md:min-w-28 md:px-3 ${player ? 'border-yellow-300 bg-slate-950 text-white' : selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:bg-yellow-200' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`}
                     style={{ left: `${position.x}%`, top: `${position.y}%` }}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
                     title={player ? 'Clique para remover' : 'Clique para escalar aqui'}
                   >
                     <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-black md:h-12 md:w-12 ${player ? 'bg-yellow-400 text-slate-950' : 'bg-slate-950/80 text-white'}`}>{player ? initials(player) : position.label}</span>
                     <span className="max-w-24 truncate text-xs font-black md:max-w-28 md:text-sm">{player || position.label}</span>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
