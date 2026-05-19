@@ -60,7 +60,12 @@ function LogoMark() {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      <path d="M33 24.5C33.8 27.2 36.8 29 41 29C45.2 29 48.2 27.2 49 24.5" stroke="#FACC15" strokeWidth="2.4" strokeLinecap="round" />
+      <path
+        d="M33 24.5C33.8 27.2 36.8 29 41 29C45.2 29 48.2 27.2 49 24.5"
+        stroke="#FACC15"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
       <path
         d="M41 34L42.9 37.9L47.2 38.5L44.1 41.5L44.9 45.8L41 43.8L37.1 45.8L37.9 41.5L34.8 38.5L39.1 37.9L41 34Z"
         fill="#FACC15"
@@ -110,8 +115,8 @@ export default function ShareStory({ formation, positions, lineup }) {
           </div>
         </div>
 
-        <div className="flex h-[900px] items-center justify-center">
-          <div style={{ width: 680 }}>
+        <div className="flex items-center justify-center" style={{ height: 860, paddingTop: 18, paddingBottom: 28 }}>
+          <div style={{ width: 610 }}>
             <div className="relative aspect-[10/14] overflow-hidden rounded-[36px] border-4 border-white/85 bg-emerald-700 shadow-inner">
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:78px_78px]" />
               <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 bg-white/85" />
@@ -125,12 +130,12 @@ export default function ShareStory({ formation, positions, lineup }) {
                   <div
                     key={position.id}
                     className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[20px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-3 text-center shadow-lg shadow-black/35"
-                    style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 126 }}
+                    style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 116 }}
                   >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-400 text-[22px] font-black text-slate-950">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-400 text-[19px] font-black text-slate-950">
                       {player ? initials(player) : position.label}
                     </div>
-                    <div className="max-w-[114px] truncate text-[13px] font-black text-white">
+                    <div className="max-w-[104px] truncate text-[12px] font-black text-white">
                       {player || position.label}
                     </div>
                   </div>
