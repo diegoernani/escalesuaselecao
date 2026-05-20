@@ -291,6 +291,7 @@ export default function App() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lineup, setLineup] = useState({});
   const [saved, setSaved] = useState(false);
+  const [restoredLineup, setRestoredLineup] = useState(false);
   const [status, setStatus] = useState('');
   const [rankingData, setRankingData] = useState(fallbackRankings);
   const [rankingStatus, setRankingStatus] = useState('');
@@ -375,11 +376,76 @@ export default function App() {
     if (!user) {
       setProfile(null);
       setProfileLoading(false);
+      setRestoredLineup(false);
       return;
     }
 
     loadOwnProfile(user.id);
   }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function restoreSavedLineup() {
+      if (!user || !currentTeam?.id || !currentMatch?.id) return;
+
+      const { data: savedLineupRow, error: savedLineupError } = await supabase
+        .from('lineups')
+        .select('id, formation')
+        .eq('user_id', user.id)
+        .eq('team_id', currentTeam.id)
+        .eq('match_id', currentMatch.id)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (savedLineupError) {
+        setSaved(false);
+        setRestoredLineup(false);
+        setStatus(`Nao foi possivel recuperar sua ultima escalacao: ${savedLineupError.message}`);
+        return;
+      }
+
+      if (!savedLineupRow) {
+        setLineup({});
+        setSelectedPlayer(null);
+        setSaved(false);
+        setRestoredLineup(false);
+        setStatus('');
+        return;
+      }
+
+      const { data: savedPlayerRows, error: savedPlayersError } = await supabase
+        .from('lineup_players')
+        .select('position_id, player_name')
+        .eq('lineup_id', savedLineupRow.id);
+
+      if (!active) return;
+
+      if (savedPlayersError) {
+        setSaved(false);
+        setRestoredLineup(false);
+        setStatus(`Encontramos seu voto, mas nao foi possivel carregar os jogadores: ${savedPlayersError.message}`);
+        return;
+      }
+
+      const nextFormation = formationData[savedLineupRow.formation] ? savedLineupRow.formation : '4-3-3';
+      const nextLineup = Object.fromEntries((savedPlayerRows || []).filter((row) => row.player_name).map((row) => [row.position_id, row.player_name]));
+
+      setFormation(nextFormation);
+      setLineup(nextLineup);
+      setSelectedPlayer(null);
+      setSaved(true);
+      setRestoredLineup(true);
+      setStatus('');
+    }
+
+    restoreSavedLineup();
+
+    return () => {
+      active = false;
+    };
+  }, [user, currentTeam?.id, currentMatch?.id]);
 
   async function loadCatalog() {
     setCatalogStatus('Carregando selecoes, jogadores e jogos...');
@@ -473,6 +539,7 @@ export default function App() {
     setLineup({});
     setSelectedPlayer(null);
     setSaved(false);
+    setRestoredLineup(false);
     setStatus('');
   }
 
@@ -486,6 +553,7 @@ export default function App() {
 
     setSelectedPlayer(null);
     setSaved(false);
+    setRestoredLineup(false);
     setStatus('');
   }
 
@@ -496,6 +564,7 @@ export default function App() {
       return copy;
     });
     setSaved(false);
+    setRestoredLineup(false);
     setStatus('');
   }
 
@@ -563,6 +632,7 @@ export default function App() {
     }
 
     setSaved(true);
+    setRestoredLineup(false);
     setStatus(`Escalacao salva para ${activeMatchLabel}. Seu voto entrou no ranking.`);
     await loadRankings(currentTeam.id, currentMatch.id);
   }
@@ -572,6 +642,7 @@ export default function App() {
     setUser(null);
     setProfile(null);
     setSaved(false);
+    setRestoredLineup(false);
     setRankingData(fallbackRankings);
   }
 
@@ -726,6 +797,7 @@ export default function App() {
               formation={formation}
               complete={complete}
               saved={saved}
+              restoredLineup={restoredLineup}
               logged={Boolean(user)}
               openAuth={() => setAuthOpen(true)}
               status={status}
@@ -945,7 +1017,7 @@ function Field({ team, match, teamsById, positions, lineup, selectedPlayer, form
   );
 }
 
-function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, logged, openAuth, status, saveLineup, setStatus }) {
+function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, restoredLineup, logged, openAuth, status, saveLineup, setStatus }) {
   const storyRef = useRef(null);
 
   function requireLogin(actionLabel) {
@@ -986,7 +1058,9 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
           <h3 className="text-lg font-black">Minha escalacao</h3>
           <p className="text-xs text-slate-400">
             {saved
-              ? `Escalacao salva para ${buildMatchLabel(match, teamsById)}.`
+              ? restoredLineup
+                ? `Recuperamos seu ultimo voto para ${buildMatchLabel(match, teamsById)}.`
+                : `Escalacao salva para ${buildMatchLabel(match, teamsById)}.`
               : logged
                 ? 'Complete os 11 jogadores para salvar e compartilhar.'
                 : 'Complete os 11 jogadores e faca login para salvar e compartilhar.'}
