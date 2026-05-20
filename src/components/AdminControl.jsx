@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, LogIn, LogOut, RefreshCcw, Save, ShieldAlert, ShieldCheck, Users } from 'lucide-react';
+import { AUTO_COMPLETE_GRACE_HOURS, isMatchAutomaticallyFinished, matchEffectiveStatus } from '../lib/matchLifecycle';
 import { supabase } from '../lib/supabaseClient';
 
 const playerCategories = ['Goleiros', 'Defensores', 'Meio-campistas', 'Atacantes'];
@@ -66,6 +67,7 @@ export default function AdminControl({ user, profile, profileLoading, openAuth, 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [teamForm, setTeamForm] = useState({ name: '', short_name: '', slug: '', fifa_code: '' });
   const [playerForm, setPlayerForm] = useState({ team_id: '', name: '', category: 'Goleiros', sort_order: '1' });
@@ -94,6 +96,11 @@ export default function AdminControl({ user, profile, profileLoading, openAuth, 
   useEffect(() => {
     if (user && isAdmin) loadAdminCatalog();
   }, [user?.id, isAdmin]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!teams.length) return;
@@ -580,7 +587,7 @@ export default function AdminControl({ user, profile, profileLoading, openAuth, 
           </AdminCard>
         </div>
 
-        <AdminCard title="Jogos cadastrados" subtitle="Atualize o status dos confrontos para controlar o que aparece como proximo jogo.">
+        <AdminCard title="Jogos cadastrados" subtitle={`O site oculta automaticamente jogos em status scheduled ${AUTO_COMPLETE_GRACE_HOURS} horas depois do horario marcado.`}>
           <div className="space-y-3">
             {matches.map((match) => (
               <div key={match.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
@@ -593,6 +600,19 @@ export default function AdminControl({ user, profile, profileLoading, openAuth, 
                     <div className="mt-1 text-xs text-slate-400">
                       {formatDateTime(match.match_at)} {match.venue_name ? `- ${match.venue_name}` : ''}
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-200">
+                        banco: {match.status}
+                      </span>
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${matchEffectiveStatus(match, nowMs) === 'auto-completed' ? 'bg-amber-400 text-slate-950' : 'bg-emerald-500 text-slate-950'}`}>
+                        site: {matchEffectiveStatus(match, nowMs) === 'auto-completed' ? 'encerrado automatico' : matchEffectiveStatus(match, nowMs)}
+                      </span>
+                    </div>
+                    {isMatchAutomaticallyFinished(match, nowMs) && (
+                      <div className="mt-2 text-xs text-amber-200">
+                        Esse jogo ja saiu sozinho do bloco publico de proximo jogo. Se quiser manter o banco consistente, troque o status para <code>completed</code>.
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300">

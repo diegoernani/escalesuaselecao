@@ -16,6 +16,7 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
+import { isMatchVisibleInPublicCatalog, sortMatchesForPublicCatalog } from './lib/matchLifecycle';
 import { supabase } from './lib/supabaseClient';
 import AdminControl from './components/AdminControl';
 import ShareStory from './components/ShareStory';
@@ -296,6 +297,7 @@ export default function App() {
   const [teams, setTeams] = useState(fallbackTeams);
   const [playersByTeam, setPlayersByTeam] = useState(fallbackPlayers);
   const [matches, setMatches] = useState(fallbackMatches);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [selectedTeamId, setSelectedTeamId] = useState('team-brazil');
   const [selectedMatchId, setSelectedMatchId] = useState('match-bra-mar-2026-06-13');
   const [catalogStatus, setCatalogStatus] = useState('');
@@ -303,6 +305,11 @@ export default function App() {
 
   useEffect(() => {
     loadCatalog();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -327,9 +334,10 @@ export default function App() {
   const teamMatches = useMemo(
     () =>
       matches
+        .filter((match) => isMatchVisibleInPublicCatalog(match, nowMs))
         .filter((match) => match.home_team_id === selectedTeamId || match.away_team_id === selectedTeamId)
-        .sort((a, b) => new Date(a.match_at).getTime() - new Date(b.match_at).getTime()),
-    [matches, selectedTeamId]
+        .sort(sortMatchesForPublicCatalog),
+    [matches, nowMs, selectedTeamId]
   );
   const currentMatch = useMemo(
     () => teamMatches.find((match) => match.id === selectedMatchId) || teamMatches[0] || null,
@@ -381,8 +389,7 @@ export default function App() {
       supabase.from('team_players').select('id, team_id, name, category, sort_order').eq('is_active', true).order('sort_order').order('name'),
       supabase
         .from('matches')
-        .select('id, slug, home_team_id, away_team_id, competition_name, competition_stage, venue_name, venue_city, match_at, status')
-        .eq('status', 'scheduled')
+        .select('id, slug, home_team_id, away_team_id, competition_name, competition_stage, venue_name, venue_city, match_at, status, featured_rank')
         .order('match_at'),
     ]);
 
@@ -410,9 +417,10 @@ export default function App() {
     }
 
     const nextMatches = matchRows?.length ? matchRows : mapFallbackMatchesToTeams(teamData);
+    const visibleMatches = nextMatches.filter((match) => isMatchVisibleInPublicCatalog(match, nowMs)).sort(sortMatchesForPublicCatalog);
     const defaultTeam = teamData.find((team) => team.slug === 'brazil') || teamData[0] || null;
     const defaultMatch =
-      nextMatches.find((match) => match.home_team_id === defaultTeam?.id || match.away_team_id === defaultTeam?.id) || nextMatches[0] || null;
+      visibleMatches.find((match) => match.home_team_id === defaultTeam?.id || match.away_team_id === defaultTeam?.id) || visibleMatches[0] || null;
 
     setTeams(teamData);
     setPlayersByTeam(groupedPlayers);
@@ -696,30 +704,32 @@ export default function App() {
             />
           </aside>
 
-          <Field
-            team={currentTeam}
-            match={currentMatch}
-            teamsById={teamsById}
-            positions={positions}
-            lineup={lineup}
-            selectedPlayer={selectedPlayer}
-            formation={formation}
-            clickPosition={clickPosition}
-            removePlayer={removePlayer}
-          />
-          <LineupPanel
-            team={currentTeam}
-            match={currentMatch}
-            teamsById={teamsById}
-            positions={positions}
-            lineup={lineup}
-            formation={formation}
-            complete={complete}
-            saved={saved}
-            status={status}
-            saveLineup={saveLineup}
-            setStatus={setStatus}
-          />
+          <div className="space-y-6">
+            <Field
+              team={currentTeam}
+              match={currentMatch}
+              teamsById={teamsById}
+              positions={positions}
+              lineup={lineup}
+              selectedPlayer={selectedPlayer}
+              formation={formation}
+              clickPosition={clickPosition}
+              removePlayer={removePlayer}
+            />
+            <LineupPanel
+              team={currentTeam}
+              match={currentMatch}
+              teamsById={teamsById}
+              positions={positions}
+              lineup={lineup}
+              formation={formation}
+              complete={complete}
+              saved={saved}
+              status={status}
+              saveLineup={saveLineup}
+              setStatus={setStatus}
+            />
+          </div>
         </main>
       ) : (
         <RankingPage
@@ -892,7 +902,7 @@ function UpcomingMatchesPanel({ team, teamsById, nextMatch, currentMatch, matche
 
 function Field({ team, match, teamsById, positions, lineup, selectedPlayer, formation, clickPosition, removePlayer }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-3 shadow-2xl md:col-start-2 md:row-span-2 md:p-5">
+    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-3 shadow-2xl md:p-5">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-black">Campo</h2>
@@ -946,7 +956,7 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-slate-950 p-4 md:col-start-2">
+    <section className="rounded-3xl border border-white/10 bg-slate-950 p-4">
       <div className="pointer-events-none fixed -left-[9999px] top-0 opacity-0">
         <div ref={storyRef}>
           <ShareStory
