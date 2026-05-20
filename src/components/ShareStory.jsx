@@ -120,8 +120,9 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
         </p>
       </div>
 
-      <div className="relative z-10 mt-[34px] flex items-center justify-center">
+      <div className="relative z-10 mt-[34px] flex flex-col items-center justify-center">
         <BrandLogo size={82} />
+        <div className="mt-5 text-[24px] font-bold tracking-[0.12em] text-slate-300">www.EscaleSuaSelecao.com.br</div>
       </div>
     </div>
   );
