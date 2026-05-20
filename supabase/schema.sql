@@ -363,7 +363,7 @@ with check (auth.uid() = id);
 create policy "Authenticated users can read lineups"
 on public.lineups for select
 to authenticated
-using (true);
+using (auth.uid() = user_id or public.is_admin_user());
 
 create policy "Users can create their own lineups"
 on public.lineups for insert
@@ -384,7 +384,15 @@ using (auth.uid() = user_id);
 create policy "Authenticated users can read lineup players"
 on public.lineup_players for select
 to authenticated
-using (true);
+using (
+  public.is_admin_user()
+  or exists (
+    select 1
+    from public.lineups l
+    where l.id = lineup_id
+      and l.user_id = auth.uid()
+  )
+);
 
 create policy "Users can create players for their own lineups"
 on public.lineup_players for insert
@@ -437,7 +445,7 @@ grant select on public.matches to anon, authenticated;
 drop view if exists public.ranking_formations;
 
 create view public.ranking_formations
-with (security_invoker = true)
+with (security_invoker = false)
 as
 select
   l.team_id,
@@ -452,7 +460,7 @@ order by l.team_id, l.match_id, votes desc, l.formation asc;
 drop view if exists public.ranking_players_by_position;
 
 create view public.ranking_players_by_position
-with (security_invoker = true)
+with (security_invoker = false)
 as
 select
   l.team_id,
