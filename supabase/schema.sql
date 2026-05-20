@@ -48,6 +48,9 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles
+  add column if not exists is_admin boolean not null default false;
+
 create table if not exists public.lineups (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -216,9 +219,56 @@ alter table public.profiles enable row level security;
 alter table public.lineups enable row level security;
 alter table public.lineup_players enable row level security;
 
+create or replace function public.is_admin_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and is_admin = true
+  );
+$$;
+
+grant execute on function public.is_admin_user() to authenticated;
+
+create or replace function public.prevent_profile_admin_flag_self_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.is_admin is distinct from old.is_admin and auth.uid() is not null and not public.is_admin_user() then
+    raise exception 'Only admins can change profile admin flag.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists before_profiles_update_protect_admin_flag on public.profiles;
+
+create trigger before_profiles_update_protect_admin_flag
+before update on public.profiles
+for each row execute function public.prevent_profile_admin_flag_self_change();
+
 drop policy if exists "Public can read teams" on public.national_teams;
 drop policy if exists "Public can read team players" on public.team_players;
 drop policy if exists "Public can read matches" on public.matches;
+drop policy if exists "Admins can insert teams" on public.national_teams;
+drop policy if exists "Admins can update teams" on public.national_teams;
+drop policy if exists "Admins can delete teams" on public.national_teams;
+drop policy if exists "Admins can insert team players" on public.team_players;
+drop policy if exists "Admins can update team players" on public.team_players;
+drop policy if exists "Admins can delete team players" on public.team_players;
+drop policy if exists "Admins can insert matches" on public.matches;
+drop policy if exists "Admins can update matches" on public.matches;
+drop policy if exists "Admins can delete matches" on public.matches;
 drop policy if exists "Profiles are visible to the owner" on public.profiles;
 drop policy if exists "Users can insert their own profile" on public.profiles;
 drop policy if exists "Users can update their own profile" on public.profiles;
@@ -246,6 +296,54 @@ on public.matches for select
 to anon, authenticated
 using (true);
 
+create policy "Admins can insert teams"
+on public.national_teams for insert
+to authenticated
+with check (public.is_admin_user());
+
+create policy "Admins can update teams"
+on public.national_teams for update
+to authenticated
+using (public.is_admin_user())
+with check (public.is_admin_user());
+
+create policy "Admins can delete teams"
+on public.national_teams for delete
+to authenticated
+using (public.is_admin_user());
+
+create policy "Admins can insert team players"
+on public.team_players for insert
+to authenticated
+with check (public.is_admin_user());
+
+create policy "Admins can update team players"
+on public.team_players for update
+to authenticated
+using (public.is_admin_user())
+with check (public.is_admin_user());
+
+create policy "Admins can delete team players"
+on public.team_players for delete
+to authenticated
+using (public.is_admin_user());
+
+create policy "Admins can insert matches"
+on public.matches for insert
+to authenticated
+with check (public.is_admin_user());
+
+create policy "Admins can update matches"
+on public.matches for update
+to authenticated
+using (public.is_admin_user())
+with check (public.is_admin_user());
+
+create policy "Admins can delete matches"
+on public.matches for delete
+to authenticated
+using (public.is_admin_user());
+
 create policy "Profiles are visible to the owner"
 on public.profiles for select
 to authenticated
@@ -254,7 +352,7 @@ using (auth.uid() = id);
 create policy "Users can insert their own profile"
 on public.profiles for insert
 to authenticated
-with check (auth.uid() = id);
+with check (auth.uid() = id and is_admin = false);
 
 create policy "Users can update their own profile"
 on public.profiles for update

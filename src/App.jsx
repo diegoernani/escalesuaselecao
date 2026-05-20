@@ -17,6 +17,7 @@ import {
   Users,
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
+import AdminControl from './components/AdminControl';
 import ShareStory from './components/ShareStory';
 
 const categoryOrder = ['Goleiros', 'Defensores', 'Meio-campistas', 'Atacantes'];
@@ -219,6 +220,11 @@ function formatShortMatchDate(value) {
   }).format(new Date(value));
 }
 
+function normalizePathname(pathname) {
+  const normalized = String(pathname || '').replace(/\/+$/, '');
+  return normalized || '/';
+}
+
 function buildMatchLabel(match, teamsById) {
   if (!match) return 'Sem jogo selecionado';
   const home = teamsById[match.home_team_id]?.short_name || 'Mandante';
@@ -277,6 +283,8 @@ async function shareImageOrDownload(cardElement, team, match, teamsById) {
 export default function App() {
   const [page, setPage] = useState('escale');
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [formation, setFormation] = useState('4-3-3');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -327,6 +335,7 @@ export default function App() {
     () => teamMatches.find((match) => match.id === selectedMatchId) || teamMatches[0] || null,
     [selectedMatchId, teamMatches]
   );
+  const isControlRoute = useMemo(() => normalizePathname(window.location.pathname) === '/controle', []);
   const nextMatch = teamMatches[0] || null;
   const positions = useMemo(() => formationData[formation].map(toPosition), [formation]);
   const selectedPlayers = useMemo(() => Object.values(lineup).filter(Boolean), [lineup]);
@@ -353,6 +362,16 @@ export default function App() {
       setRankingStatus('');
     }
   }, [user, selectedMatchId, selectedTeamId]);
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    loadOwnProfile(user.id);
+  }, [user]);
 
   async function loadCatalog() {
     setCatalogStatus('Carregando selecoes, jogadores e jogos...');
@@ -406,6 +425,21 @@ export default function App() {
         ? 'Parte do catalogo foi completada com dados locais de apoio. Rode o novo schema no Supabase para centralizar selecoes, jogadores e jogos.'
         : ''
     );
+  }
+
+  async function loadOwnProfile(userId) {
+    setProfileLoading(true);
+
+    const { data, error } = await supabase.from('profiles').select('id, name, email, is_admin').eq('id', userId).maybeSingle();
+
+    if (error) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfile(data || null);
+    setProfileLoading(false);
   }
 
   async function loadRankings(teamId, matchId) {
@@ -527,8 +561,25 @@ export default function App() {
   async function signOut() {
     await supabase.auth.signOut();
     setUser(null);
+    setProfile(null);
     setSaved(false);
     setRankingData(fallbackRankings);
+  }
+
+  if (isControlRoute) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <AdminControl
+          user={user}
+          profile={profile}
+          profileLoading={profileLoading}
+          openAuth={() => setAuthOpen(true)}
+          signOut={signOut}
+          refreshPublicCatalog={loadCatalog}
+        />
+        {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSuccess={() => setAuthOpen(false)} />}
+      </div>
+    );
   }
 
   return (
