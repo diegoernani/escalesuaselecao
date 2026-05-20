@@ -32,6 +32,24 @@ function hideSocialButtons() {
   });
 }
 
+function forceFaviconRefresh() {
+  const version = '20260520-logo-camisa';
+  const faviconHref = `/favicon.svg?v=${version}`;
+
+  document.querySelectorAll('link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach((link) => link.remove());
+
+  const svgIcon = document.createElement('link');
+  svgIcon.rel = 'icon';
+  svgIcon.type = 'image/svg+xml';
+  svgIcon.href = faviconHref;
+  document.head.appendChild(svgIcon);
+
+  const shortcutIcon = document.createElement('link');
+  shortcutIcon.rel = 'shortcut icon';
+  shortcutIcon.href = `/favicon.ico?v=${version}`;
+  document.head.appendChild(shortcutIcon);
+}
+
 function styleGoogleButton() {
   document.querySelectorAll('button').forEach((button) => {
     if (!buttonText(button).includes('Entrar com Google')) return;
@@ -88,6 +106,7 @@ function forceDesktopDownloadForGeneratedImage() {
 
 export function setupImageShareButtons() {
   forceDesktopDownloadForGeneratedImage();
+  forceFaviconRefresh();
   hideSocialButtons();
   styleGoogleButton();
 
