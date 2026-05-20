@@ -56,9 +56,16 @@ create table if not exists public.lineups (
   user_id uuid not null references auth.users(id) on delete cascade,
   team_id uuid not null references public.national_teams(id) on delete restrict,
   match_id uuid references public.matches(id) on delete set null,
-  formation text not null check (formation in ('4-3-3', '4-5-1', '4-4-2', '3-5-2')),
+  formation text not null check (formation in ('4-3-3', '4-5-1', '4-4-2', '4-2-4', '3-5-2')),
   created_at timestamptz not null default now()
 );
+
+alter table public.lineups
+  drop constraint if exists lineups_formation_check;
+
+alter table public.lineups
+  add constraint lineups_formation_check
+  check (formation in ('4-3-3', '4-5-1', '4-4-2', '4-2-4', '3-5-2'));
 
 alter table public.lineups
   add column if not exists team_id uuid references public.national_teams(id) on delete restrict;
