@@ -512,6 +512,7 @@ export default function App() {
 
   async function saveLineup() {
     if (!user) {
+      setStatus('Faca login para salvar seu voto e compartilhar sua escalacao.');
       setAuthOpen(true);
       return;
     }
@@ -725,6 +726,8 @@ export default function App() {
               formation={formation}
               complete={complete}
               saved={saved}
+              logged={Boolean(user)}
+              openAuth={() => setAuthOpen(true)}
               status={status}
               saveLineup={saveLineup}
               setStatus={setStatus}
@@ -942,11 +945,19 @@ function Field({ team, match, teamsById, positions, lineup, selectedPlayer, form
   );
 }
 
-function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, status, saveLineup, setStatus }) {
+function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, logged, openAuth, status, saveLineup, setStatus }) {
   const storyRef = useRef(null);
+
+  function requireLogin(actionLabel) {
+    if (logged) return true;
+    setStatus(`Faca login para ${actionLabel} sua escalacao.`);
+    openAuth();
+    return false;
+  }
 
   async function handleShareStory() {
     if (!complete || !storyRef.current || !team || !match) return;
+    if (!requireLogin('compartilhar')) return;
     setStatus('Gerando imagem para compartilhar...');
     try {
       setStatus(await shareImageOrDownload(storyRef.current, team, match, teamsById));
@@ -974,7 +985,11 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
         <div>
           <h3 className="text-lg font-black">Minha escalacao</h3>
           <p className="text-xs text-slate-400">
-            {saved ? `Escalacao salva para ${buildMatchLabel(match, teamsById)}.` : 'Complete os 11 jogadores para salvar e compartilhar.'}
+            {saved
+              ? `Escalacao salva para ${buildMatchLabel(match, teamsById)}.`
+              : logged
+                ? 'Complete os 11 jogadores para salvar e compartilhar.'
+                : 'Complete os 11 jogadores e faca login para salvar e compartilhar.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1028,7 +1043,10 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         <button
-          onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(buildShareText(team, match, teamsById))}`, '_blank', 'noopener,noreferrer')}
+          onClick={() => {
+            if (!requireLogin('compartilhar')) return;
+            window.open(`https://wa.me/?text=${encodeURIComponent(buildShareText(team, match, teamsById))}`, '_blank', 'noopener,noreferrer');
+          }}
           disabled={!complete || !match || !team}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -1044,7 +1062,10 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
           Story
         </button>
         <button
-          onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank', 'noopener,noreferrer')}
+          onClick={() => {
+            if (!requireLogin('compartilhar')) return;
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank', 'noopener,noreferrer');
+          }}
           disabled={!complete || !match || !team}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-black text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
