@@ -1,43 +1,147 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toBlob } from 'html-to-image';
-import { BarChart3, LockKeyhole, LogIn, LogOut, MessageCircle, MousePointerClick, RotateCcw, Save, Share2, Trophy, Users } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  LockKeyhole,
+  LogIn,
+  LogOut,
+  MapPin,
+  MessageCircle,
+  MousePointerClick,
+  RotateCcw,
+  Save,
+  Share2,
+  Shield,
+  Trophy,
+  Users,
+} from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import ShareStory from './components/ShareStory';
 
-const players = {
-  Goleiros: ['Alisson', 'Ederson', 'Weverton'],
-  Defensores: ['Alex Sandro', 'Bremer', 'Danilo', 'Douglas Santos', 'Gabriel Magalhães', 'Ibañez', 'Léo Pereira', 'Marquinhos', 'Wesley'],
-  'Meio-campistas': ['Bruno Guimarães', 'Casemiro', 'Danilo S.', 'Fabinho', 'Lucas Paquetá'],
-  Atacantes: ['Endrick', 'Gabriel Martinelli', 'Igor Thiago', 'Luiz Henrique', 'Matheus Cunha', 'Neymar Jr.', 'Raphinha', 'Rayan', 'Vini Jr.'],
-};
+const categoryOrder = ['Goleiros', 'Defensores', 'Meio-campistas', 'Atacantes'];
+const rankingPositions = ['GOL', 'LE', 'ZAG', 'LD', 'VOL', 'MC', 'PE', 'ATA', 'PD', 'ME', 'MD', 'ALA'];
 
 const formationData = {
-  '4-3-3': [[50,91,'GOL','gk'],[18,72,'LE','lb'],[39,75,'ZAG','cb1'],[61,75,'ZAG','cb2'],[82,72,'LD','rb'],[30,52,'MC','cm1'],[50,58,'VOL','cdm'],[70,52,'MC','cm2'],[20,27,'PE','lw'],[50,20,'ATA','st'],[80,27,'PD','rw']],
-  '4-5-1': [[50,91,'GOL','gk'],[18,72,'LE','lb'],[39,75,'ZAG','cb1'],[61,75,'ZAG','cb2'],[82,72,'LD','rb'],[16,49,'ME','lm'],[35,52,'MC','cm1'],[50,58,'VOL','cdm'],[65,52,'MC','cm2'],[84,49,'MD','rm'],[50,22,'ATA','st']],
-  '4-4-2': [[50,91,'GOL','gk'],[18,72,'LE','lb'],[39,75,'ZAG','cb1'],[61,75,'ZAG','cb2'],[82,72,'LD','rb'],[18,50,'ME','lm'],[41,55,'MC','cm1'],[59,55,'MC','cm2'],[82,50,'MD','rm'],[40,23,'ATA','st1'],[60,23,'ATA','st2']],
-  '3-5-2': [[50,91,'GOL','gk'],[30,73,'ZAG','cb1'],[50,78,'ZAG','cb2'],[70,73,'ZAG','cb3'],[14,50,'ALA','lwb'],[35,52,'MC','cm1'],[50,59,'VOL','cdm'],[65,52,'MC','cm2'],[86,50,'ALA','rwb'],[40,23,'ATA','st1'],[60,23,'ATA','st2']],
+  '4-3-3': [[50, 91, 'GOL', 'gk'], [18, 72, 'LE', 'lb'], [39, 75, 'ZAG', 'cb1'], [61, 75, 'ZAG', 'cb2'], [82, 72, 'LD', 'rb'], [30, 52, 'MC', 'cm1'], [50, 58, 'VOL', 'cdm'], [70, 52, 'MC', 'cm2'], [20, 27, 'PE', 'lw'], [50, 20, 'ATA', 'st'], [80, 27, 'PD', 'rw']],
+  '4-5-1': [[50, 91, 'GOL', 'gk'], [18, 72, 'LE', 'lb'], [39, 75, 'ZAG', 'cb1'], [61, 75, 'ZAG', 'cb2'], [82, 72, 'LD', 'rb'], [16, 49, 'ME', 'lm'], [35, 52, 'MC', 'cm1'], [50, 58, 'VOL', 'cdm'], [65, 52, 'MC', 'cm2'], [84, 49, 'MD', 'rm'], [50, 22, 'ATA', 'st']],
+  '4-4-2': [[50, 91, 'GOL', 'gk'], [18, 72, 'LE', 'lb'], [39, 75, 'ZAG', 'cb1'], [61, 75, 'ZAG', 'cb2'], [82, 72, 'LD', 'rb'], [18, 50, 'ME', 'lm'], [41, 55, 'MC', 'cm1'], [59, 55, 'MC', 'cm2'], [82, 50, 'MD', 'rm'], [40, 23, 'ATA', 'st1'], [60, 23, 'ATA', 'st2']],
+  '3-5-2': [[50, 91, 'GOL', 'gk'], [30, 73, 'ZAG', 'cb1'], [50, 78, 'ZAG', 'cb2'], [70, 73, 'ZAG', 'cb3'], [14, 50, 'ALA', 'lwb'], [35, 52, 'MC', 'cm1'], [50, 59, 'VOL', 'cdm'], [65, 52, 'MC', 'cm2'], [86, 50, 'ALA', 'rwb'], [40, 23, 'ATA', 'st1'], [60, 23, 'ATA', 'st2']],
 };
 
 const fallbackRankings = {
-  formations: [['4-3-3', 0], ['4-4-2', 0], ['4-5-1', 0], ['3-5-2', 0]],
-  positions: { GOL: [], LE: [], ZAG: [], LD: [], VOL: [], MC: [], PE: [], ATA: [], PD: [], ME: [], MD: [], ALA: [] },
+  formations: Object.keys(formationData).map((formation) => [formation, 0]),
+  positions: Object.fromEntries(rankingPositions.map((position) => [position, []])),
 };
 
-const categoryByPlayer = Object.fromEntries(Object.entries(players).flatMap(([category, names]) => names.map((name) => [name, category])));
-const toPosition = ([x, y, label, id]) => ({ x, y, label, id });
-const initials = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-const userName = (user) => user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Torcedor';
-const formatVotes = (votes) => Number(votes || 0).toLocaleString('pt-BR');
+const fallbackTeams = [
+  { id: 'team-brazil', slug: 'brazil', name: 'Brasil', short_name: 'Brasil', fifa_code: 'BRA' },
+  { id: 'team-morocco', slug: 'morocco', name: 'Marrocos', short_name: 'Marrocos', fifa_code: 'MAR' },
+  { id: 'team-haiti', slug: 'haiti', name: 'Haiti', short_name: 'Haiti', fifa_code: 'HAI' },
+  { id: 'team-scotland', slug: 'scotland', name: 'Escocia', short_name: 'Escocia', fifa_code: 'SCO' },
+];
 
-function buildShareText() {
-  return `Minha escalação no Escale Sua Seleção é essa. Faça a sua também: ${window.location.origin}`;
+const fallbackPlayers = {
+  'team-brazil': [
+    { id: 'bra-alisson', name: 'Alisson', category: 'Goleiros' },
+    { id: 'bra-ederson', name: 'Ederson', category: 'Goleiros' },
+    { id: 'bra-weverton', name: 'Weverton', category: 'Goleiros' },
+    { id: 'bra-alex-sandro', name: 'Alex Sandro', category: 'Defensores' },
+    { id: 'bra-bremer', name: 'Bremer', category: 'Defensores' },
+    { id: 'bra-danilo', name: 'Danilo', category: 'Defensores' },
+    { id: 'bra-douglas-santos', name: 'Douglas Santos', category: 'Defensores' },
+    { id: 'bra-gabriel-magalhaes', name: 'Gabriel Magalhaes', category: 'Defensores' },
+    { id: 'bra-ibanez', name: 'Ibanez', category: 'Defensores' },
+    { id: 'bra-leo-pereira', name: 'Leo Pereira', category: 'Defensores' },
+    { id: 'bra-marquinhos', name: 'Marquinhos', category: 'Defensores' },
+    { id: 'bra-wesley', name: 'Wesley', category: 'Defensores' },
+    { id: 'bra-bruno-guimaraes', name: 'Bruno Guimaraes', category: 'Meio-campistas' },
+    { id: 'bra-casemiro', name: 'Casemiro', category: 'Meio-campistas' },
+    { id: 'bra-danilo-santos', name: 'Danilo Santos', category: 'Meio-campistas' },
+    { id: 'bra-fabinho', name: 'Fabinho', category: 'Meio-campistas' },
+    { id: 'bra-lucas-paqueta', name: 'Lucas Paqueta', category: 'Meio-campistas' },
+    { id: 'bra-endrick', name: 'Endrick', category: 'Atacantes' },
+    { id: 'bra-gabriel-martinelli', name: 'Gabriel Martinelli', category: 'Atacantes' },
+    { id: 'bra-igor-thiago', name: 'Igor Thiago', category: 'Atacantes' },
+    { id: 'bra-luiz-henrique', name: 'Luiz Henrique', category: 'Atacantes' },
+    { id: 'bra-matheus-cunha', name: 'Matheus Cunha', category: 'Atacantes' },
+    { id: 'bra-neymar-junior', name: 'Neymar Junior', category: 'Atacantes' },
+    { id: 'bra-raphinha', name: 'Raphinha', category: 'Atacantes' },
+    { id: 'bra-rayan', name: 'Rayan', category: 'Atacantes' },
+    { id: 'bra-vinicius-junior', name: 'Vinicius Junior', category: 'Atacantes' },
+  ],
+};
+
+const fallbackMatches = [
+  {
+    id: 'match-bra-mar-2026-06-13',
+    slug: 'brazil-vs-morocco-2026-06-13',
+    home_team_id: 'team-brazil',
+    away_team_id: 'team-morocco',
+    competition_name: 'FIFA World Cup 2026',
+    competition_stage: 'Grupo C',
+    venue_name: 'New York New Jersey Stadium',
+    venue_city: 'East Rutherford, Estados Unidos',
+    match_at: '2026-06-13T22:00:00Z',
+    status: 'scheduled',
+  },
+  {
+    id: 'match-bra-hai-2026-06-19',
+    slug: 'brazil-vs-haiti-2026-06-19',
+    home_team_id: 'team-brazil',
+    away_team_id: 'team-haiti',
+    competition_name: 'FIFA World Cup 2026',
+    competition_stage: 'Grupo C',
+    venue_name: 'Philadelphia Stadium',
+    venue_city: 'Philadelphia, Estados Unidos',
+    match_at: '2026-06-20T00:30:00Z',
+    status: 'scheduled',
+  },
+  {
+    id: 'match-sco-bra-2026-06-24',
+    slug: 'scotland-vs-brazil-2026-06-24',
+    home_team_id: 'team-scotland',
+    away_team_id: 'team-brazil',
+    competition_name: 'FIFA World Cup 2026',
+    competition_stage: 'Grupo C',
+    venue_name: 'Miami Stadium',
+    venue_city: 'Miami Gardens, Estados Unidos',
+    match_at: '2026-06-24T22:00:00Z',
+    status: 'scheduled',
+  },
+];
+
+const toPosition = ([x, y, label, id]) => ({ x, y, label, id });
+const fallbackTeamSlugById = Object.fromEntries(fallbackTeams.map((team) => [team.id, team.slug]));
+
+function buildFallbackCatalog() {
+  return {
+    teams: fallbackTeams,
+    playersByTeam: fallbackPlayers,
+    matches: fallbackMatches,
+  };
+}
+
+function mapFallbackMatchesToTeams(teamRows) {
+  const teamsBySlug = Object.fromEntries(teamRows.map((team) => [team.slug, team]));
+  return fallbackMatches.map((match) => ({
+    ...match,
+    home_team_id: teamsBySlug[fallbackTeamSlugById[match.home_team_id]]?.id || match.home_team_id,
+    away_team_id: teamsBySlug[fallbackTeamSlugById[match.away_team_id]]?.id || match.away_team_id,
+  }));
+}
+
+function emptyPositionsRanking() {
+  return Object.fromEntries(rankingPositions.map((position) => [position, []]));
 }
 
 function buildRankingData(formationRows = [], playerRows = []) {
   const formationVotes = new Map(formationRows.map((row) => [row.formation, Number(row.votes || 0)]));
   const next = {
-    formations: Object.keys(formationData).map((formation) => [formation, formationVotes.get(formation) || 0]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-    positions: { GOL: [], LE: [], ZAG: [], LD: [], VOL: [], MC: [], PE: [], ATA: [], PD: [], ME: [], MD: [], ALA: [] },
+    formations: Object.keys(formationData)
+      .map((formation) => [formation, formationVotes.get(formation) || 0])
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    positions: emptyPositionsRanking(),
   };
 
   playerRows.forEach((row) => {
@@ -46,10 +150,86 @@ function buildRankingData(formationRows = [], playerRows = []) {
   });
 
   Object.keys(next.positions).forEach((position) => {
-    next.positions[position] = next.positions[position].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
+    next.positions[position] = next.positions[position]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3);
   });
 
   return next;
+}
+
+function groupPlayersByTeam(playerRows = []) {
+  return playerRows.reduce((accumulator, row) => {
+    const teamId = row.team_id;
+    if (!teamId) return accumulator;
+    if (!accumulator[teamId]) accumulator[teamId] = [];
+    accumulator[teamId].push({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      sort_order: row.sort_order || 0,
+    });
+    return accumulator;
+  }, {});
+}
+
+function groupPlayersForDisplay(players = [], selectedSet) {
+  return categoryOrder.map((category) => ({
+    category,
+    players: players
+      .filter((player) => player.category === category && !selectedSet.has(player.name))
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.name.localeCompare(b.name)),
+  }));
+}
+
+function initials(name) {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function userName(user) {
+  return user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Torcedor';
+}
+
+function formatVotes(votes) {
+  return Number(votes || 0).toLocaleString('pt-BR');
+}
+
+function formatMatchDateTime(value) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date(value));
+}
+
+function formatShortMatchDate(value) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date(value));
+}
+
+function buildMatchLabel(match, teamsById) {
+  if (!match) return 'Sem jogo selecionado';
+  const home = teamsById[match.home_team_id]?.short_name || 'Mandante';
+  const away = teamsById[match.away_team_id]?.short_name || 'Visitante';
+  return `${home} x ${away}`;
+}
+
+function buildShareText(team, match, teamsById) {
+  const teamName = team?.name || 'minha selecao';
+  const matchLabel = buildMatchLabel(match, teamsById);
+  return `Minha escalacao de ${teamName} para ${matchLabel} no Escale Sua Selecao: ${window.location.origin}`;
 }
 
 async function copyText(text) {
@@ -61,20 +241,25 @@ async function copyText(text) {
   }
 }
 
-async function shareImageOrDownload(cardElement) {
-  const text = buildShareText();
+async function shareImageOrDownload(cardElement, team, match, teamsById) {
+  const text = buildShareText(team, match, teamsById);
   const blob = await toBlob(cardElement, {
     cacheBust: true,
     pixelRatio: 2,
     backgroundColor: '#020617',
   });
 
-  if (!blob) throw new Error('Não foi possível gerar a imagem.');
+  if (!blob) throw new Error('Nao foi possivel gerar a imagem.');
 
   const file = new File([blob], 'minha-escalacao-escaleselecao.png', { type: 'image/png' });
 
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ title: 'Escale Sua Seleção', text, url: window.location.origin, files: [file] });
+    await navigator.share({
+      title: 'Escale Sua Selecao',
+      text,
+      url: window.location.origin,
+      files: [file],
+    });
     return 'Imagem pronta para compartilhar.';
   }
 
@@ -100,6 +285,17 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [rankingData, setRankingData] = useState(fallbackRankings);
   const [rankingStatus, setRankingStatus] = useState('');
+  const [teams, setTeams] = useState(fallbackTeams);
+  const [playersByTeam, setPlayersByTeam] = useState(fallbackPlayers);
+  const [matches, setMatches] = useState(fallbackMatches);
+  const [selectedTeamId, setSelectedTeamId] = useState('team-brazil');
+  const [selectedMatchId, setSelectedMatchId] = useState('match-bra-mar-2026-06-13');
+  const [catalogStatus, setCatalogStatus] = useState('');
+  const [usingFallbackCatalog, setUsingFallbackCatalog] = useState(true);
+
+  useEffect(() => {
+    loadCatalog();
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -117,25 +313,112 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (user) loadRankings();
-  }, [user]);
-
+  const teamsById = useMemo(() => Object.fromEntries(teams.map((team) => [team.id, team])), [teams]);
+  const currentTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0] || null, [selectedTeamId, teams]);
+  const currentPlayers = useMemo(() => playersByTeam[selectedTeamId] || [], [playersByTeam, selectedTeamId]);
+  const teamMatches = useMemo(
+    () =>
+      matches
+        .filter((match) => match.home_team_id === selectedTeamId || match.away_team_id === selectedTeamId)
+        .sort((a, b) => new Date(a.match_at).getTime() - new Date(b.match_at).getTime()),
+    [matches, selectedTeamId]
+  );
+  const currentMatch = useMemo(
+    () => teamMatches.find((match) => match.id === selectedMatchId) || teamMatches[0] || null,
+    [selectedMatchId, teamMatches]
+  );
+  const nextMatch = teamMatches[0] || null;
   const positions = useMemo(() => formationData[formation].map(toPosition), [formation]);
   const selectedPlayers = useMemo(() => Object.values(lineup).filter(Boolean), [lineup]);
   const selectedSet = useMemo(() => new Set(selectedPlayers), [selectedPlayers]);
+  const availablePlayers = useMemo(() => groupPlayersForDisplay(currentPlayers, selectedSet), [currentPlayers, selectedSet]);
   const complete = selectedPlayers.length === 11;
-  const availablePlayers = useMemo(() => Object.entries(players).map(([category, names]) => ({ category, names: names.filter((name) => !selectedSet.has(name)) })), [selectedSet]);
+  const hasRoster = currentPlayers.length > 0;
+  const activeMatchLabel = buildMatchLabel(currentMatch, teamsById);
 
-  async function loadRankings() {
+  useEffect(() => {
+    if (!teamMatches.length) {
+      setSelectedMatchId('');
+      return;
+    }
+
+    const alreadySelected = teamMatches.some((match) => match.id === selectedMatchId);
+    if (!alreadySelected) setSelectedMatchId(teamMatches[0].id);
+  }, [selectedMatchId, teamMatches]);
+
+  useEffect(() => {
+    if (user && selectedTeamId && selectedMatchId) loadRankings(selectedTeamId, selectedMatchId);
+    if (!selectedTeamId || !selectedMatchId) {
+      setRankingData(fallbackRankings);
+      setRankingStatus('');
+    }
+  }, [user, selectedMatchId, selectedTeamId]);
+
+  async function loadCatalog() {
+    setCatalogStatus('Carregando selecoes, jogadores e jogos...');
+
+    const [{ data: teamRows, error: teamsError }, { data: playerRows, error: playersError }, { data: matchRows, error: matchesError }] = await Promise.all([
+      supabase.from('national_teams').select('id, slug, name, short_name, fifa_code').eq('is_active', true).order('name'),
+      supabase.from('team_players').select('id, team_id, name, category, sort_order').eq('is_active', true).order('sort_order').order('name'),
+      supabase
+        .from('matches')
+        .select('id, slug, home_team_id, away_team_id, competition_name, competition_stage, venue_name, venue_city, match_at, status')
+        .eq('status', 'scheduled')
+        .order('match_at'),
+    ]);
+
+    if (teamsError || playersError || matchesError) {
+      const fallbackCatalog = buildFallbackCatalog();
+      setTeams(fallbackCatalog.teams);
+      setPlayersByTeam(fallbackCatalog.playersByTeam);
+      setMatches(fallbackCatalog.matches);
+      setSelectedTeamId('team-brazil');
+      setSelectedMatchId('match-bra-mar-2026-06-13');
+      setUsingFallbackCatalog(true);
+      setCatalogStatus('Usando dados locais de apoio. Rode o novo schema no Supabase para liberar o cadastro dinamico de selecoes e jogos.');
+      return;
+    }
+
+    const teamData = teamRows?.length ? teamRows : fallbackTeams;
+    const groupedPlayers = groupPlayersByTeam(playerRows || []);
+    const brazilTeam = teamData.find((team) => team.slug === 'brazil');
+    const usedFallbackTeams = !teamRows?.length;
+    const usedFallbackMatches = !matchRows?.length;
+    const usedFallbackBrazilRoster = Boolean(brazilTeam) && !groupedPlayers[brazilTeam.id]?.length;
+
+    if (usedFallbackBrazilRoster) {
+      groupedPlayers[brazilTeam.id] = fallbackPlayers['team-brazil'];
+    }
+
+    const nextMatches = matchRows?.length ? matchRows : mapFallbackMatchesToTeams(teamData);
+    const defaultTeam = teamData.find((team) => team.slug === 'brazil') || teamData[0] || null;
+    const defaultMatch =
+      nextMatches.find((match) => match.home_team_id === defaultTeam?.id || match.away_team_id === defaultTeam?.id) || nextMatches[0] || null;
+
+    setTeams(teamData);
+    setPlayersByTeam(groupedPlayers);
+    setMatches(nextMatches);
+    setSelectedTeamId(defaultTeam?.id || '');
+    setSelectedMatchId(defaultMatch?.id || '');
+    setUsingFallbackCatalog(usedFallbackTeams || usedFallbackMatches || usedFallbackBrazilRoster);
+    setCatalogStatus(
+      usedFallbackTeams || usedFallbackMatches || usedFallbackBrazilRoster
+        ? 'Parte do catalogo foi completada com dados locais de apoio. Rode o novo schema no Supabase para centralizar selecoes, jogadores e jogos.'
+        : ''
+    );
+  }
+
+  async function loadRankings(teamId, matchId) {
     setRankingStatus('Carregando ranking...');
+
     const [{ data: formationRows, error: formationError }, { data: playerRows, error: playerError }] = await Promise.all([
-      supabase.from('ranking_formations').select('formation, votes'),
-      supabase.from('ranking_players_by_position').select('position, player_name, votes'),
+      supabase.from('ranking_formations').select('formation, votes').eq('team_id', teamId).eq('match_id', matchId),
+      supabase.from('ranking_players_by_position').select('position, player_name, votes').eq('team_id', teamId).eq('match_id', matchId),
     ]);
 
     if (formationError || playerError) {
-      setRankingStatus(`Não foi possível carregar o ranking: ${(formationError || playerError).message}`);
+      setRankingData(fallbackRankings);
+      setRankingStatus(`Nao foi possivel carregar o ranking: ${(formationError || playerError).message}`);
       return;
     }
 
@@ -174,21 +457,71 @@ export default function App() {
     setStatus('');
   }
 
+  function handleTeamChange(teamId) {
+    setSelectedTeamId(teamId);
+    setSelectedMatchId('');
+    resetLineup();
+  }
+
+  function handleMatchChange(matchId) {
+    setSelectedMatchId(matchId);
+    resetLineup();
+  }
+
   async function saveLineup() {
-    if (!user) return setAuthOpen(true);
-    if (!complete) return;
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
 
-    setStatus('Salvando escalação...');
-    const { data, error } = await supabase.from('lineups').insert({ user_id: user.id, formation }).select('id').single();
-    if (error) { setStatus(`Erro ao salvar: ${error.message}`); return; }
+    if (!complete || !currentTeam || !currentMatch) return;
 
-    const rows = positions.map((position) => ({ lineup_id: data.id, position: position.label, position_id: position.id, player_name: lineup[position.id] }));
+    setStatus('Salvando escalacao...');
+
+    const { error: deleteError } = await supabase
+      .from('lineups')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('team_id', currentTeam.id)
+      .eq('match_id', currentMatch.id);
+
+    if (deleteError) {
+      setStatus(`Nao foi possivel atualizar seu voto anterior: ${deleteError.message}`);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('lineups')
+      .insert({
+        user_id: user.id,
+        team_id: currentTeam.id,
+        match_id: currentMatch.id,
+        formation,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      setStatus(`Erro ao salvar: ${error.message}`);
+      return;
+    }
+
+    const rows = positions.map((position) => ({
+      lineup_id: data.id,
+      position: position.label,
+      position_id: position.id,
+      player_name: lineup[position.id],
+    }));
+
     const { error: playersError } = await supabase.from('lineup_players').insert(rows);
-    if (playersError) { setStatus(`Escalação criada, mas jogadores não foram salvos: ${playersError.message}`); return; }
+    if (playersError) {
+      setStatus(`Escalacao criada, mas os jogadores nao foram salvos: ${playersError.message}`);
+      return;
+    }
 
     setSaved(true);
-    setStatus('Escalação salva no Supabase. Seu voto entrou no ranking.');
-    await loadRankings();
+    setStatus(`Escalacao salva para ${activeMatchLabel}. Seu voto entrou no ranking.`);
+    await loadRankings(currentTeam.id, currentMatch.id);
   }
 
   async function signOut() {
@@ -200,44 +533,155 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <Header page={page} setPage={setPage} user={user} signOut={signOut} openAuth={() => setAuthOpen(true)} count={selectedPlayers.length} formation={formation} />
+      <Header
+        page={page}
+        setPage={setPage}
+        user={user}
+        signOut={signOut}
+        openAuth={() => setAuthOpen(true)}
+        count={selectedPlayers.length}
+        formation={formation}
+        team={currentTeam}
+        match={currentMatch}
+        teamsById={teamsById}
+      />
 
       {page === 'escale' ? (
         <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 md:grid-cols-[370px_1fr] md:px-8">
           <aside className="space-y-5">
-            <Panel title="Formação">
+            <Panel title="Selecao" subtitle="Escolha qual equipe voce quer escalar.">
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2">
+                  <select
+                    value={selectedTeamId}
+                    onChange={(event) => handleTeamChange(event.target.value)}
+                    className="w-full bg-transparent text-sm font-black outline-none"
+                  >
+                    {teams.map((team) => {
+                      const rosterCount = playersByTeam[team.id]?.length || 0;
+                      return (
+                        <option key={team.id} value={team.id} className="bg-slate-950 text-white">
+                          {team.name}{rosterCount ? '' : ' - sem elenco'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-slate-200">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Shield size={16} />
+                    {currentTeam?.name || 'Selecao'}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {hasRoster ? `${currentPlayers.length} jogadores cadastrados para escalar.` : 'Ainda nao ha jogadores cadastrados para esta selecao.'}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+
+            <Panel title="Formacao">
               <div className="grid grid-cols-2 gap-2">
                 {Object.keys(formationData).map((item) => (
-                  <button key={item} onClick={() => resetLineup(item)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${formation === item ? 'bg-yellow-400 text-slate-950' : 'bg-slate-900 text-slate-200 hover:bg-slate-800'}`}>
+                  <button
+                    key={item}
+                    onClick={() => resetLineup(item)}
+                    className={`rounded-2xl px-4 py-3 text-sm font-black transition ${formation === item ? 'bg-yellow-400 text-slate-950' : 'bg-slate-900 text-slate-200 hover:bg-slate-800'}`}
+                  >
                     {item}
                   </button>
                 ))}
               </div>
             </Panel>
 
-            <Panel title="Jogadores" subtitle={selectedPlayer ? `Selecionado: ${selectedPlayer}` : 'Clique em um jogador para escalar.'} action={<button onClick={() => resetLineup()} className="rounded-xl bg-slate-900 p-2 text-slate-200 hover:bg-slate-800"><RotateCcw size={18} /></button>}>
-              <div className="max-h-[620px] space-y-4 overflow-auto pr-1">
-                {availablePlayers.map(({ category, names }) => (
-                  <div key={category}>
-                    <h3 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-yellow-300">{category}</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {names.map((name) => (
-                        <button key={name} onClick={() => setSelectedPlayer(name)} className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold transition ${selectedPlayer === name ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/10 bg-slate-900 text-slate-100 hover:border-yellow-300/60 hover:bg-slate-800'}`}>
-                          {name}<span className="mt-1 block text-[10px] font-medium opacity-70">{categoryByPlayer[name]}</span>
-                        </button>
-                      ))}
+            <Panel
+              title="Jogadores"
+              subtitle={selectedPlayer ? `Selecionado: ${selectedPlayer}` : 'Clique em um jogador para escalar.'}
+              action={
+                <button onClick={() => resetLineup()} className="rounded-xl bg-slate-900 p-2 text-slate-200 hover:bg-slate-800">
+                  <RotateCcw size={18} />
+                </button>
+              }
+            >
+              {!hasRoster ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 p-4 text-sm text-slate-400">
+                  Esta selecao ainda nao tem elenco cadastrado no Supabase.
+                </div>
+              ) : (
+                <div className="max-h-[620px] space-y-4 overflow-auto pr-1">
+                  {availablePlayers.map(({ category, players: categoryPlayers }) => (
+                    <div key={category}>
+                      <h3 className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-yellow-300">{category}</h3>
+                      {categoryPlayers.length ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {categoryPlayers.map((player) => (
+                            <button
+                              key={player.id}
+                              onClick={() => setSelectedPlayer(player.name)}
+                              className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold transition ${selectedPlayer === player.name ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/10 bg-slate-900 text-slate-100 hover:border-yellow-300/60 hover:bg-slate-800'}`}
+                            >
+                              {player.name}
+                              <span className="mt-1 block text-[10px] font-medium opacity-70">{player.category}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500">Todos os jogadores desta faixa ja estao em campo.</p>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Panel>
+
+            <UpcomingMatchesPanel
+              team={currentTeam}
+              teamsById={teamsById}
+              nextMatch={nextMatch}
+              currentMatch={currentMatch}
+              matches={teamMatches}
+              onSelectMatch={handleMatchChange}
+              catalogStatus={catalogStatus}
+              usingFallbackCatalog={usingFallbackCatalog}
+            />
           </aside>
 
-          <Field positions={positions} lineup={lineup} selectedPlayer={selectedPlayer} formation={formation} clickPosition={clickPosition} removePlayer={removePlayer} />
-          <LineupPanel positions={positions} lineup={lineup} formation={formation} complete={complete} saved={saved} status={status} saveLineup={saveLineup} setStatus={setStatus} />
+          <Field
+            team={currentTeam}
+            match={currentMatch}
+            teamsById={teamsById}
+            positions={positions}
+            lineup={lineup}
+            selectedPlayer={selectedPlayer}
+            formation={formation}
+            clickPosition={clickPosition}
+            removePlayer={removePlayer}
+          />
+          <LineupPanel
+            team={currentTeam}
+            match={currentMatch}
+            teamsById={teamsById}
+            positions={positions}
+            lineup={lineup}
+            formation={formation}
+            complete={complete}
+            saved={saved}
+            status={status}
+            saveLineup={saveLineup}
+            setStatus={setStatus}
+          />
         </main>
       ) : (
-        <RankingPage logged={Boolean(user)} openAuth={() => setAuthOpen(true)} setPage={setPage} rankingData={rankingData} rankingStatus={rankingStatus} reload={loadRankings} />
+        <RankingPage
+          logged={Boolean(user)}
+          openAuth={() => setAuthOpen(true)}
+          setPage={setPage}
+          rankingData={rankingData}
+          rankingStatus={rankingStatus}
+          reload={() => currentTeam && currentMatch && loadRankings(currentTeam.id, currentMatch.id)}
+          team={currentTeam}
+          match={currentMatch}
+          teamsById={teamsById}
+        />
       )}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSuccess={() => setAuthOpen(false)} />}
@@ -245,24 +689,60 @@ export default function App() {
   );
 }
 
-function Header({ page, setPage, user, signOut, openAuth, count, formation }) {
+function Header({ page, setPage, user, signOut, openAuth, count, formation, team, match, teamsById }) {
   return (
     <header className="border-b border-white/10 bg-slate-950/90 px-4 py-5 backdrop-blur md:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950"><Trophy size={14} /> Seleção Oficial</div>
-          <h1 className="text-3xl font-black tracking-tight md:text-5xl">Escale sua Seleção</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-300 md:text-base">Monte sua seleção, salve seu voto e compare com os jogadores mais escalados do Brasil.</p>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
+            <Trophy size={14} />
+            Selecao Oficial
+          </div>
+          <h1 className="text-3xl font-black tracking-tight md:text-5xl">Escale sua Selecao</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-300 md:text-base">
+            Monte sua selecao para o proximo jogo, salve seu voto e compare com os jogadores mais escalados.
+          </p>
         </div>
         <div className="flex flex-col gap-3 md:items-end">
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => setPage('escale')} className={`rounded-2xl px-4 py-2 text-sm font-black transition ${page === 'escale' ? 'bg-yellow-400 text-slate-950' : 'bg-white/10 text-white hover:bg-white/15'}`}>Escalar</button>
-            <button onClick={() => setPage('ranking')} className={`rounded-2xl px-4 py-2 text-sm font-black transition ${page === 'ranking' ? 'bg-yellow-400 text-slate-950' : 'bg-white/10 text-white hover:bg-white/15'}`}>Mais escalados</button>
-            {user ? <button onClick={signOut} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-800"><LogOut size={16} /> Sair de {userName(user).split(' ')[0]}</button> : <button onClick={openAuth} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-400"><LogIn size={16} /> Entrar</button>}
+            <button
+              onClick={() => setPage('escale')}
+              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${page === 'escale' ? 'bg-yellow-400 text-slate-950' : 'bg-white/10 text-white hover:bg-white/15'}`}
+            >
+              Escalar
+            </button>
+            <button
+              onClick={() => setPage('ranking')}
+              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${page === 'ranking' ? 'bg-yellow-400 text-slate-950' : 'bg-white/10 text-white hover:bg-white/15'}`}
+            >
+              Mais escalados
+            </button>
+            {user ? (
+              <button onClick={signOut} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-800">
+                <LogOut size={16} />
+                Sair de {userName(user).split(' ')[0]}
+              </button>
+            ) : (
+              <button onClick={openAuth} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-emerald-400">
+                <LogIn size={16} />
+                Entrar
+              </button>
+            )}
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-            <div className="flex items-center gap-2 font-bold"><Users size={18} /> {count}/11 escalados</div>
-            <div className="mt-1 text-xs text-slate-400">Formação atual: <strong className="text-yellow-300">{formation}</strong></div>
+            <div className="flex items-center gap-2 font-bold">
+              <Users size={18} />
+              {count}/11 escalados
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Formacao atual: <strong className="text-yellow-300">{formation}</strong>
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Time: <strong className="text-slate-100">{team?.name || 'Selecao'}</strong>
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Jogo: <strong className="text-slate-100">{buildMatchLabel(match, teamsById)}</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -271,15 +751,108 @@ function Header({ page, setPage, user, signOut, openAuth, count, formation }) {
 }
 
 function Panel({ title, subtitle, action, children }) {
-  return <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl"><div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-lg font-black">{title}</h2>{subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}</div>{action}</div>{children}</section>;
+  return (
+    <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-black">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
 }
 
-function Field({ positions, lineup, selectedPlayer, formation, clickPosition, removePlayer }) {
+function UpcomingMatchesPanel({ team, teamsById, nextMatch, currentMatch, matches, onSelectMatch, catalogStatus, usingFallbackCatalog }) {
+  if (!team) return null;
+
+  return (
+    <Panel title="Proximo jogo" subtitle="Use esta area para escolher o confronto que vai receber a sua escalacao.">
+      {nextMatch ? (
+        <div className="space-y-3">
+          <button
+            onClick={() => onSelectMatch(nextMatch.id)}
+            className={`w-full rounded-[1.75rem] border px-4 py-4 text-left transition ${currentMatch?.id === nextMatch.id ? 'border-yellow-300 bg-yellow-300/10' : 'border-white/10 bg-slate-950/70 hover:border-yellow-300/50'}`}
+          >
+            <div className="inline-flex items-center rounded-full bg-yellow-400 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-950">
+              Proximo jogo
+            </div>
+            <div className="mt-3 text-xl font-black">{buildMatchLabel(nextMatch, teamsById)}</div>
+            <div className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+              <CalendarDays size={15} />
+              {formatMatchDateTime(nextMatch.match_at)}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+              <MapPin size={14} />
+              {nextMatch.venue_name} - {nextMatch.venue_city}
+            </div>
+            <div className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">
+              {nextMatch.competition_name} {nextMatch.competition_stage ? `- ${nextMatch.competition_stage}` : ''}
+            </div>
+          </button>
+
+          {matches.length > 1 && (
+            <div className="space-y-2">
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Outros jogos cadastrados</div>
+              {matches.slice(1).map((match) => {
+                return (
+                  <button
+                    key={match.id}
+                    onClick={() => onSelectMatch(match.id)}
+                    className={`w-full rounded-2xl border px-3 py-3 text-left transition ${currentMatch?.id === match.id ? 'border-yellow-300 bg-yellow-300/10' : 'border-white/10 bg-slate-950/60 hover:border-white/20 hover:bg-slate-900'}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black">{buildMatchLabel(match, teamsById)}</div>
+                        <div className="mt-1 text-xs text-slate-400">{formatShortMatchDate(match.match_at)}</div>
+                      </div>
+                      <div className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-300">
+                        {match.competition_stage || 'Agenda'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 p-4 text-sm text-slate-400">
+          Ainda nao ha jogos futuros cadastrados para {team.name}.
+        </div>
+      )}
+
+      {catalogStatus && (
+        <div className="mt-4 rounded-2xl border border-sky-300/20 bg-sky-300/10 p-3 text-xs font-bold text-sky-100">
+          {catalogStatus}
+        </div>
+      )}
+
+      {usingFallbackCatalog && (
+        <div className="mt-3 text-[11px] text-slate-500">
+          Os jogos exibidos aqui usam um fallback local ate o novo cadastro ser aplicado no Supabase.
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function Field({ team, match, teamsById, positions, lineup, selectedPlayer, formation, clickPosition, removePlayer }) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/5 p-3 shadow-2xl md:col-start-2 md:row-span-2 md:p-5">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div><h2 className="text-2xl font-black">Campo</h2><p className="text-sm text-slate-400">Monte seu time ideal no esquema {formation}.</p></div>
-        <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300"><MousePointerClick size={16} /> Clique na posição para colocar o jogador</div>
+        <div>
+          <h2 className="text-2xl font-black">Campo</h2>
+          <p className="text-sm text-slate-400">
+            Monte {team?.name || 'sua selecao'} no esquema {formation} para {buildMatchLabel(match, teamsById)}.
+          </p>
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300">
+          <MousePointerClick size={16} />
+          Clique na posicao para colocar o jogador
+        </div>
       </div>
       <div className="relative mx-auto aspect-[10/14] max-h-[760px] overflow-hidden rounded-[2rem] border-4 border-white/80 bg-emerald-700 shadow-inner">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_50%,transparent_50%)] bg-[length:80px_80px]" />
@@ -290,8 +863,15 @@ function Field({ positions, lineup, selectedPlayer, formation, clickPosition, re
         {positions.map((position) => {
           const player = lineup[position.id];
           return (
-            <button key={`${formation}-${position.id}`} onClick={() => player ? removePlayer(position.id) : clickPosition(position.id)} className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition-colors md:min-w-28 md:px-3 ${player ? 'border-yellow-300 bg-slate-950 text-white' : selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:bg-yellow-200' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`} style={{ left: `${position.x}%`, top: `${position.y}%` }}>
-              <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-black md:h-12 md:w-12 ${player ? 'bg-yellow-400 text-slate-950' : 'bg-slate-950/80 text-white'}`}>{player ? initials(player) : position.label}</span>
+            <button
+              key={`${formation}-${position.id}`}
+              onClick={() => (player ? removePlayer(position.id) : clickPosition(position.id))}
+              className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition-colors md:min-w-28 md:px-3 ${player ? 'border-yellow-300 bg-slate-950 text-white' : selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:bg-yellow-200' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`}
+              style={{ left: `${position.x}%`, top: `${position.y}%` }}
+            >
+              <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-black md:h-12 md:w-12 ${player ? 'bg-yellow-400 text-slate-950' : 'bg-slate-950/80 text-white'}`}>
+                {player ? initials(player) : position.label}
+              </span>
               <span className="max-w-24 truncate text-xs font-black md:max-w-28 md:text-sm">{player || position.label}</span>
             </button>
           );
@@ -301,16 +881,16 @@ function Field({ positions, lineup, selectedPlayer, formation, clickPosition, re
   );
 }
 
-function LineupPanel({ positions, lineup, formation, complete, saved, status, saveLineup, setStatus }) {
+function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, status, saveLineup, setStatus }) {
   const storyRef = useRef(null);
 
   async function handleShareStory() {
-    if (!complete || !storyRef.current) return;
+    if (!complete || !storyRef.current || !team || !match) return;
     setStatus('Gerando imagem para compartilhar...');
     try {
-      setStatus(await shareImageOrDownload(storyRef.current));
+      setStatus(await shareImageOrDownload(storyRef.current, team, match, teamsById));
     } catch (error) {
-      setStatus(`Não foi possível gerar a imagem: ${error.message}`);
+      setStatus(`Nao foi possivel gerar a imagem: ${error.message}`);
     }
   }
 
@@ -318,26 +898,98 @@ function LineupPanel({ positions, lineup, formation, complete, saved, status, sa
     <section className="rounded-3xl border border-white/10 bg-slate-950 p-4 md:col-start-2">
       <div className="pointer-events-none fixed -left-[9999px] top-0 opacity-0">
         <div ref={storyRef}>
-          <ShareStory formation={formation} positions={positions} lineup={lineup} />
+          <ShareStory
+            team={team}
+            formation={formation}
+            positions={positions}
+            lineup={lineup}
+            matchLabel={buildMatchLabel(match, teamsById)}
+            matchDateLabel={formatMatchDateTime(match?.match_at)}
+          />
         </div>
       </div>
 
       <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div><h3 className="text-lg font-black">Minha escalação</h3><p className="text-xs text-slate-400">{saved ? 'Escalação salva. Seu voto entrou no ranking.' : 'Complete os 11 jogadores para salvar e compartilhar.'}</p></div>
+        <div>
+          <h3 className="text-lg font-black">Minha escalacao</h3>
+          <p className="text-xs text-slate-400">
+            {saved ? `Escalacao salva para ${buildMatchLabel(match, teamsById)}.` : 'Complete os 11 jogadores para salvar e compartilhar.'}
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={saveLineup} disabled={!complete} className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"><Save size={16} /> Salvar voto</button>
-          <button onClick={handleShareStory} disabled={!complete} className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-sm font-black text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={16} /> Compartilhar imagem</button>
+          <button
+            onClick={saveLineup}
+            disabled={!complete || !match || !team}
+            className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Save size={16} />
+            Salvar voto
+          </button>
+          <button
+            onClick={handleShareStory}
+            disabled={!complete || !match || !team}
+            className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-sm font-black text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Share2 size={16} />
+            Compartilhar imagem
+          </button>
         </div>
       </div>
 
+      {match && (
+        <div className="mb-4 grid gap-2 rounded-3xl border border-white/10 bg-white/5 p-4 md:grid-cols-3">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Jogo</div>
+            <div className="mt-1 text-sm font-bold text-slate-100">{buildMatchLabel(match, teamsById)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Data</div>
+            <div className="mt-1 text-sm font-bold text-slate-100">{formatMatchDateTime(match.match_at)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Competicao</div>
+            <div className="mt-1 text-sm font-bold text-slate-100">
+              {match.competition_name} {match.competition_stage ? `- ${match.competition_stage}` : ''}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-        {positions.map((position) => <div key={position.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm"><span className="font-black text-yellow-300">{position.label}</span><span className="mx-2 text-slate-500">•</span><span className="font-bold text-slate-100">{lineup[position.id] || 'Em aberto'}</span></div>)}
+        {positions.map((position) => (
+          <div key={position.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
+            <span className="font-black text-yellow-300">{position.label}</span>
+            <span className="mx-2 text-slate-500">•</span>
+            <span className="font-bold text-slate-100">{lineup[position.id] || 'Em aberto'}</span>
+          </div>
+        ))}
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
-        <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(buildShareText())}`, '_blank', 'noopener,noreferrer')} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"><MessageCircle size={18} /> WhatsApp</button>
-        <button onClick={handleShareStory} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-pink-500 px-4 py-3 text-sm font-black text-white hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={18} /> Story</button>
-        <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank', 'noopener,noreferrer')} disabled={!complete} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-black text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"><Share2 size={18} /> Facebook</button>
+        <button
+          onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(buildShareText(team, match, teamsById))}`, '_blank', 'noopener,noreferrer')}
+          disabled={!complete || !match || !team}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <MessageCircle size={18} />
+          WhatsApp
+        </button>
+        <button
+          onClick={handleShareStory}
+          disabled={!complete || !match || !team}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-pink-500 px-4 py-3 text-sm font-black text-white hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Share2 size={18} />
+          Story
+        </button>
+        <button
+          onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank', 'noopener,noreferrer')}
+          disabled={!complete || !match || !team}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-4 py-3 text-sm font-black text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Share2 size={18} />
+          Facebook
+        </button>
       </div>
 
       {status && <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-xs font-bold text-yellow-100">{status}</div>}
@@ -345,14 +997,123 @@ function LineupPanel({ positions, lineup, formation, complete, saved, status, sa
   );
 }
 
-function RankingPage({ logged, openAuth, setPage, rankingData, rankingStatus, reload }) {
-  if (!logged) return <main className="mx-auto max-w-7xl px-4 py-6 md:px-8"><section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center shadow-2xl"><div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-400 text-slate-950"><LockKeyhole size={30} /></div><h2 className="text-3xl font-black">Ranking bloqueado</h2><p className="mx-auto mt-3 max-w-xl text-slate-300">Para ver os jogadores mais escalados por posição e a formação preferida da galera, faça login primeiro.</p><button onClick={openAuth} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300"><LogIn size={18} /> Fazer login para ver ranking</button></section></main>;
+function RankingPage({ logged, openAuth, setPage, rankingData, rankingStatus, reload, team, match, teamsById }) {
+  if (!logged) {
+    return (
+      <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+        <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center shadow-2xl">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-400 text-slate-950">
+            <LockKeyhole size={30} />
+          </div>
+          <h2 className="text-3xl font-black">Ranking bloqueado</h2>
+          <p className="mx-auto mt-3 max-w-xl text-slate-300">
+            Para ver quem a galera mais escala em {buildMatchLabel(match, teamsById)}, faca login primeiro.
+          </p>
+          <button onClick={openAuth} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">
+            <LogIn size={18} />
+            Fazer login para ver ranking
+          </button>
+        </section>
+      </main>
+    );
+  }
 
-  return <main className="mx-auto max-w-7xl px-4 py-6 md:px-8"><section className="space-y-6"><div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-slate-950"><BarChart3 size={14} /> Ranking real</div><h2 className="text-3xl font-black md:text-4xl">Mais escalados</h2><p className="mt-2 text-slate-300">Dados carregados do Supabase com base nos votos salvos.</p>{rankingStatus && <p className="mt-2 text-sm font-bold text-yellow-200">{rankingStatus}</p>}</div><div className="flex gap-2"><button onClick={reload} className="rounded-2xl bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15">Atualizar</button><button onClick={() => setPage('escale')} className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">Montar minha seleção</button></div></div><div className="grid gap-6 lg:grid-cols-[360px_1fr]"><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Formações mais usadas</h3><div className="space-y-3">{rankingData.formations.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={Math.max(rankingData.formations[0]?.[1] || 1, 1)} index={index} color="bg-yellow-400" />)}</div></div><div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl"><h3 className="mb-4 text-xl font-black">Jogadores por posição</h3><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Object.entries(rankingData.positions).map(([position, items]) => <div key={position} className="rounded-3xl bg-slate-950 p-4"><div className="mb-3 flex items-center justify-between"><h4 className="text-lg font-black text-yellow-300">{position}</h4><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-400">Top 3</span></div><div className="space-y-3">{items.length ? items.map((item, index) => <RankingBar key={item[0]} label={item[0]} votes={item[1]} max={Math.max(items[0]?.[1] || 1, 1)} index={index} compact color="bg-emerald-400" />) : <p className="text-sm text-slate-500">Sem votos ainda.</p>}</div></div>)}</div></div></div></section></main>;
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+      <section className="space-y-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-slate-950">
+              <BarChart3 size={14} />
+              Ranking real
+            </div>
+            <h2 className="text-3xl font-black md:text-4xl">Mais escalados</h2>
+            <p className="mt-2 text-slate-300">
+              Ranking de {team?.name || 'uma selecao'} para {buildMatchLabel(match, teamsById)}.
+            </p>
+            {match && (
+              <p className="mt-2 text-sm text-slate-400">
+                {formatMatchDateTime(match.match_at)} - {match.venue_name}
+              </p>
+            )}
+            {rankingStatus && <p className="mt-2 text-sm font-bold text-yellow-200">{rankingStatus}</p>}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={reload} className="rounded-2xl bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15">
+              Atualizar
+            </button>
+            <button onClick={() => setPage('escale')} className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">
+              Montar minha selecao
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl">
+            <h3 className="mb-4 text-xl font-black">Formacoes mais usadas</h3>
+            <div className="space-y-3">
+              {rankingData.formations.map((item, index) => (
+                <RankingBar
+                  key={item[0]}
+                  label={item[0]}
+                  votes={item[1]}
+                  max={Math.max(rankingData.formations[0]?.[1] || 1, 1)}
+                  index={index}
+                  color="bg-yellow-400"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl">
+            <h3 className="mb-4 text-xl font-black">Jogadores por posicao</h3>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Object.entries(rankingData.positions).map(([position, items]) => (
+                <div key={position} className="rounded-3xl bg-slate-950 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-lg font-black text-yellow-300">{position}</h4>
+                    <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-400">Top 3</span>
+                  </div>
+                  <div className="space-y-3">
+                    {items.length ? (
+                      items.map((item, index) => (
+                        <RankingBar
+                          key={item[0]}
+                          label={item[0]}
+                          votes={item[1]}
+                          max={Math.max(items[0]?.[1] || 1, 1)}
+                          index={index}
+                          compact
+                          color="bg-emerald-400"
+                        />
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">Sem votos ainda.</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }
 
 function RankingBar({ label, votes, max, index, compact = false, color }) {
-  return <div className={compact ? '' : 'rounded-3xl bg-slate-950 p-4'}><div className="mb-2 flex items-center justify-between gap-2"><div className="flex items-center gap-3">{!compact && <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-yellow-400 font-black text-slate-950">{index + 1}</span>}<strong className={compact ? 'text-sm text-slate-100' : 'text-lg'}>{compact ? `${index + 1}. ${label}` : label}</strong></div><span className="text-xs font-black text-slate-400">{formatVotes(votes)}</span></div><div className="h-2 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${color}`} style={{ width: `${(votes / max) * 100}%` }} /></div></div>;
+  return (
+    <div className={compact ? '' : 'rounded-3xl bg-slate-950 p-4'}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          {!compact && <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-yellow-400 font-black text-slate-950">{index + 1}</span>}
+          <strong className={compact ? 'text-sm text-slate-100' : 'text-lg'}>{compact ? `${index + 1}. ${label}` : label}</strong>
+        </div>
+        <span className="text-xs font-black text-slate-400">{formatVotes(votes)}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${(votes / max) * 100}%` }} />
+      </div>
+    </div>
+  );
 }
 
 function AuthModal({ onClose, onSuccess }) {
@@ -366,10 +1127,17 @@ function AuthModal({ onClose, onSuccess }) {
     event.preventDefault();
     setMessage(register ? 'Criando cadastro...' : 'Entrando...');
     const result = register
-      ? await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { name: form.name }, emailRedirectTo: window.location.origin } })
+      ? await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: { data: { name: form.name }, emailRedirectTo: window.location.origin },
+        })
       : await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
 
-    if (result.error) { setMessage(result.error.message); return; }
+    if (result.error) {
+      setMessage(result.error.message);
+      return;
+    }
 
     if (register && !result.data?.session) {
       setMessage('Cadastro criado. Verifique seu e-mail para confirmar a conta antes de entrar.');
@@ -383,9 +1151,72 @@ function AuthModal({ onClose, onSuccess }) {
 
   async function loginWithGoogle() {
     setMessage('Abrindo Google...');
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
     if (error) setMessage(error.message);
   }
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur"><div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-900 p-6 shadow-2xl"><div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-black">{register ? 'Criar cadastro' : 'Entrar'}</h2><p className="mt-1 text-sm text-slate-400">{register ? 'Cadastre nome, e-mail e senha para liberar o ranking.' : 'Entre para salvar voto e liberar o ranking.'}</p></div><button onClick={onClose} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-black hover:bg-white/15">X</button></div><form onSubmit={submit} className="space-y-3">{register && <input className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300" placeholder="Seu nome" value={form.name} onChange={(event) => update('name', event.target.value)} required />}<input className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300" placeholder="Seu e-mail" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} required /><input className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300" placeholder="Senha" type="password" value={form.password} onChange={(event) => update('password', event.target.value)} required /><button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300"><LogIn size={18} /> {register ? 'Criar cadastro e entrar' : 'Entrar e continuar'}</button></form><button onClick={loginWithGoogle} className="mt-3 w-full rounded-2xl bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15">Entrar com Google</button><button onClick={() => { setMode(register ? 'login' : 'register'); setMessage(''); }} className="mt-4 w-full rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 hover:bg-white/5">{register ? 'Já tenho conta' : 'Criar uma conta'}</button>{message && <p className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-xs font-bold text-yellow-100">{message}</p>}</div></div>;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur">
+      <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">{register ? 'Criar cadastro' : 'Entrar'}</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              {register ? 'Cadastre nome, e-mail e senha para salvar seus votos por jogo.' : 'Entre para salvar voto e liberar o ranking.'}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-black hover:bg-white/15">
+            X
+          </button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          {register && (
+            <input
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300"
+              placeholder="Seu nome"
+              value={form.name}
+              onChange={(event) => update('name', event.target.value)}
+              required
+            />
+          )}
+          <input
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300"
+            placeholder="Seu e-mail"
+            type="email"
+            value={form.email}
+            onChange={(event) => update('email', event.target.value)}
+            required
+          />
+          <input
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-yellow-300"
+            placeholder="Senha"
+            type="password"
+            value={form.password}
+            onChange={(event) => update('password', event.target.value)}
+            required
+          />
+          <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300">
+            <LogIn size={18} />
+            {register ? 'Criar cadastro e entrar' : 'Entrar e continuar'}
+          </button>
+        </form>
+        <button onClick={loginWithGoogle} className="mt-3 w-full rounded-2xl bg-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/15">
+          Entrar com Google
+        </button>
+        <button
+          onClick={() => {
+            setMode(register ? 'login' : 'register');
+            setMessage('');
+          }}
+          className="mt-4 w-full rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 hover:bg-white/5"
+        >
+          {register ? 'Ja tenho conta' : 'Criar uma conta'}
+        </button>
+        {message && <p className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-xs font-bold text-yellow-100">{message}</p>}
+      </div>
+    </div>
+  );
 }

@@ -33,28 +33,17 @@ function DotGrid({ className = '' }) {
 function ShareArrowIcon() {
   return (
     <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path
-        d="M19 45C19 31.7 28.3 24 42 24H46"
-        stroke="#FACC15"
-        strokeWidth="4.4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M35 14L47 24L35 34"
-        stroke="#FACC15"
-        strokeWidth="4.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M19 45C19 31.7 28.3 24 42 24H46" stroke="#FACC15" strokeWidth="4.4" strokeLinecap="round" />
+      <path d="M35 14L47 24L35 34" stroke="#FACC15" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-export default function ShareStory({ formation, positions, lineup }) {
+export default function ShareStory({ team, formation, positions, lineup, matchLabel, matchDateLabel }) {
   return (
     <div style={{ width: 1080, height: 1920 }} className="relative overflow-hidden bg-[#03123d] text-white">
       <div className="absolute inset-0 bg-[linear-gradient(180deg,#04144a_0%,#03123d_55%,#021033_100%)]" />
-      <div className="absolute inset-0 opacity-[0.18] bg-[repeating-linear-gradient(115deg,transparent_0px,transparent_24px,rgba(255,255,255,0.08)_25px,transparent_26px,transparent_80px)]" />
+      <div className="absolute inset-0 bg-[repeating-linear-gradient(115deg,transparent_0px,transparent_24px,rgba(255,255,255,0.08)_25px,transparent_26px,transparent_80px)] opacity-[0.18]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_30%),radial-gradient(circle_at_bottom,rgba(250,204,21,0.03),transparent_32%)]" />
 
       <div className="absolute left-[74px] top-[44px] h-[270px] w-[4px] rotate-[33deg] rounded-full bg-yellow-400/70" />
@@ -68,30 +57,42 @@ export default function ShareStory({ formation, positions, lineup }) {
       <AccentSlashes className="absolute left-[112px] bottom-[280px] scale-90" />
       <AccentSlashes className="absolute right-[112px] bottom-[280px] scale-90" />
 
-      <div className="relative z-10 px-16 pt-[82px] text-center">
-        <h1 className="mx-auto max-w-[980px] text-[84px] font-black leading-[0.96] tracking-tight text-white">
-          Minha escalação no
-          <span className="mt-2 block text-[92px] text-yellow-400">Escale Sua Seleção</span>
-          <span className="mt-2 block">é essa:</span>
+      <div className="relative z-10 px-16 pt-[72px] text-center">
+        <div className="mx-auto inline-flex items-center rounded-full bg-yellow-400 px-6 py-2 text-[20px] font-black uppercase tracking-[0.28em] text-slate-950">
+          {team?.name || 'Selecao'}
+        </div>
+        <h1 className="mx-auto mt-8 max-w-[980px] text-[78px] font-black leading-[0.96] tracking-tight text-white">
+          Minha escalacao no
+          <span className="mt-2 block text-[88px] text-yellow-400">Escale Sua Selecao</span>
         </h1>
         <div className="mx-auto mt-8 h-[7px] w-[320px] rounded-full bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.5)]" />
       </div>
 
+      <div className="relative z-10 mx-auto mt-10 flex w-[860px] items-center justify-between rounded-[32px] border border-white/10 bg-white/5 px-8 py-6">
+        <div>
+          <div className="text-[18px] font-black uppercase tracking-[0.2em] text-yellow-300">Jogo selecionado</div>
+          <div className="mt-3 text-[38px] font-black leading-tight">{matchLabel}</div>
+        </div>
+        <div className="max-w-[280px] text-right">
+          <div className="text-[18px] font-black uppercase tracking-[0.2em] text-yellow-300">Data</div>
+          <div className="mt-3 text-[24px] font-bold leading-tight text-slate-100">{matchDateLabel}</div>
+          <div className="mt-3 text-[18px] font-bold text-slate-300">Esquema {formation}</div>
+        </div>
+      </div>
+
       <div
         className="relative z-10 border-2 border-yellow-400 bg-[linear-gradient(180deg,rgba(6,18,61,0.98),rgba(4,14,47,0.98))] shadow-[0_0_38px_rgba(250,204,21,0.3)]"
-        style={{ width: 860, height: 1030, marginTop: 40, marginLeft: 110, marginRight: 110, borderRadius: 44, padding: 28 }}
+        style={{ width: 860, height: 900, marginTop: 36, marginLeft: 110, marginRight: 110, borderRadius: 44, padding: 28 }}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[32px] font-black leading-none">Campo</h2>
-            <p className="mt-3 text-[15px] text-slate-300">Monte seu time ideal no esquema {formation}.</p>
+            <p className="mt-3 text-[15px] text-slate-300">Time montado no esquema {formation} para este confronto.</p>
           </div>
-          <div className="rounded-full bg-[#081942] px-5 py-3 text-[14px] font-bold text-slate-100">
-            Clique na posição para colocar o jogador
-          </div>
+          <div className="rounded-full bg-[#081942] px-5 py-3 text-[14px] font-bold text-slate-100">Escalacao pronta para compartilhar</div>
         </div>
 
-        <div className="flex items-center justify-center" style={{ height: 860, paddingTop: 18, paddingBottom: 28 }}>
+        <div className="flex items-center justify-center" style={{ height: 740, paddingTop: 18, paddingBottom: 18 }}>
           <div style={{ width: 610 }}>
             <div className="relative aspect-[10/14] overflow-hidden rounded-[36px] border-4 border-white/85 bg-emerald-700 shadow-inner">
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:78px_78px]" />
@@ -111,9 +112,7 @@ export default function ShareStory({ formation, positions, lineup }) {
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-400 text-[19px] font-black text-slate-950">
                       {player ? initials(player) : position.label}
                     </div>
-                    <div className="max-w-[104px] truncate text-[12px] font-black text-white">
-                      {player || position.label}
-                    </div>
+                    <div className="max-w-[104px] truncate text-[12px] font-black text-white">{player || position.label}</div>
                   </div>
                 );
               })}
@@ -122,17 +121,17 @@ export default function ShareStory({ formation, positions, lineup }) {
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto mt-[44px] flex w-[742px] items-center gap-8 rounded-[38px] bg-yellow-400 px-9 py-7 text-slate-950 shadow-[0_0_28px_rgba(250,204,21,0.38)]">
+      <div className="relative z-10 mx-auto mt-[38px] flex w-[742px] items-center gap-8 rounded-[38px] bg-yellow-400 px-9 py-7 text-slate-950 shadow-[0_0_28px_rgba(250,204,21,0.38)]">
         <div className="flex h-[96px] w-[96px] items-center justify-center rounded-full bg-[#03123d] shadow-inner">
           <ShareArrowIcon />
         </div>
         <p className="text-[44px] font-black leading-[1.02]">
-          Faça a sua também
+          Faca a sua tambem
           <span className="block">e compartilhe.</span>
         </p>
       </div>
 
-      <div className="relative z-10 mt-[44px] flex items-center justify-center">
+      <div className="relative z-10 mt-[40px] flex items-center justify-center">
         <BrandLogo size={82} />
       </div>
     </div>
