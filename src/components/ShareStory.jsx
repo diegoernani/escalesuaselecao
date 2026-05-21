@@ -61,11 +61,11 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
 
       <div className="relative z-10 px-16 pt-[72px] text-center">
         <div className="mx-auto inline-flex items-center rounded-full bg-yellow-400 px-6 py-2 text-[20px] font-black uppercase tracking-[0.28em] text-slate-950">
-          {team?.name || 'Selecao'}
+          {team?.name || 'Sele\u00e7\u00e3o'}
         </div>
         <h1 className="mx-auto mt-8 max-w-[980px] text-[78px] font-black leading-[0.96] tracking-tight text-white">
-          Minha escalacao no
-          <span className="mt-2 block text-[88px] text-yellow-400">Escale Sua Selecao</span>
+          {'Minha escala\u00e7\u00e3o no'}
+          <span className="mt-2 block text-[88px] text-yellow-400">{'Escale Sua Sele\u00e7\u00e3o'}</span>
         </h1>
         <div className="mx-auto mt-8 h-[7px] w-[320px] rounded-full bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.5)]" />
       </div>
@@ -115,7 +115,7 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
           <ShareArrowIcon />
         </div>
         <p className="text-[40px] font-black leading-[1.02]">
-          Faca a sua tambem
+          {'Fa\u00e7a a sua tamb\u00e9m'}
           <span className="block">e compartilhe.</span>
         </p>
       </div>

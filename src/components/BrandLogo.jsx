@@ -30,7 +30,7 @@ export default function BrandLogo({ size = 82, textClassName = 'text-[34px] font
     <div className="flex items-center justify-center gap-5">
       <LogoMark size={size} />
       <div className={textClassName}>
-        Escale <span className="text-yellow-400">Sua</span> Seleção
+        Escale <span className="text-yellow-400">Sua</span> {'Sele\u00e7\u00e3o'}
       </div>
     </div>
   );
