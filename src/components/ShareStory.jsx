@@ -40,7 +40,7 @@ function ShareArrowIcon() {
 }
 
 export default function ShareStory({ team, formation, positions, lineup, matchLabel, matchDateLabel }) {
-  const pitchWidth = 590;
+  const pitchWidth = 650;
 
   return (
     <div style={{ width: 1080, height: 1920 }} className="relative overflow-hidden bg-[#03123d] text-white">
@@ -82,27 +82,27 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto mt-7 flex justify-center">
+      <div className="relative z-10 mx-auto mt-5 flex justify-center">
         <div style={{ width: pitchWidth }}>
           <div className="relative aspect-[10/14] overflow-hidden rounded-[38px] border-4 border-white/85 bg-emerald-700 shadow-[0_24px_44px_rgba(2,6,23,0.34),inset_0_12px_36px_rgba(255,255,255,0.08)]">
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:68px_68px]" />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.07)_50%,transparent_50%)] bg-[length:74px_74px]" />
             <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 bg-white/85" />
-            <div className="absolute left-1/2 top-1/2 h-[136px] w-[136px] -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/85" />
-            <div className="absolute left-1/2 top-0 h-[116px] w-[248px] -translate-x-1/2 rounded-b-[32px] border-x-4 border-b-4 border-white/85" />
-            <div className="absolute bottom-0 left-1/2 h-[116px] w-[248px] -translate-x-1/2 rounded-t-[32px] border-x-4 border-t-4 border-white/85" />
+            <div className="absolute left-1/2 top-1/2 h-[148px] w-[148px] -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/85" />
+            <div className="absolute left-1/2 top-0 h-[128px] w-[274px] -translate-x-1/2 rounded-b-[34px] border-x-4 border-b-4 border-white/85" />
+            <div className="absolute bottom-0 left-1/2 h-[128px] w-[274px] -translate-x-1/2 rounded-t-[34px] border-x-4 border-t-4 border-white/85" />
 
             {positions.map((position) => {
               const player = lineup[position.id];
               return (
                 <div
                   key={position.id}
-                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[18px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-[10px] text-center shadow-[0_14px_26px_rgba(2,6,23,0.35)]"
-                  style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 114 }}
+                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[20px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-[11px] text-center shadow-[0_16px_28px_rgba(2,6,23,0.35)]"
+                  style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 124 }}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-400 text-[19px] font-black text-slate-950">
+                  <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-400 text-[20px] font-black text-slate-950">
                     {player ? initials(player) : position.label}
                   </div>
-                  <div className="max-w-[104px] truncate text-[13px] font-black text-white">{player || position.label}</div>
+                  <div className="max-w-[112px] truncate text-[14px] font-black text-white">{player || position.label}</div>
                 </div>
               );
             })}
