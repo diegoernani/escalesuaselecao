@@ -40,7 +40,7 @@ function ShareArrowIcon() {
 }
 
 export default function ShareStory({ team, formation, positions, lineup, matchLabel, matchDateLabel }) {
-  const pitchWidth = 500;
+  const pitchWidth = 520;
 
   return (
     <div style={{ width: 1080, height: 1920 }} className="relative overflow-hidden bg-[#03123d] text-white">
@@ -49,7 +49,7 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_30%),radial-gradient(circle_at_bottom,rgba(250,204,21,0.03),transparent_32%)]" />
 
       <div className="absolute left-[74px] top-[44px] h-[270px] w-[4px] rotate-[33deg] rounded-full bg-yellow-400/70" />
-      <div className="absolute right-[-124px] top-[356px] h-[152px] w-[286px] rounded-tl-[168px] border-l-[24px] border-t-[24px] border-yellow-400/55" />
+      <div className="absolute right-[-138px] top-[330px] h-[150px] w-[270px] rounded-tl-[168px] border-l-[24px] border-t-[24px] border-yellow-400/55" />
       <div className="absolute left-[-112px] bottom-[-18px] h-[210px] w-[270px] rounded-tr-[180px] border-r-[26px] border-t-[26px] border-yellow-400/55" />
       <div className="absolute right-[-24px] bottom-[-36px] h-[270px] w-[230px] rounded-tl-[220px] border-l-[5px] border-t-[5px] border-yellow-400/85" />
 
@@ -59,26 +59,26 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
       <AccentSlashes className="absolute left-[112px] bottom-[280px] scale-90" />
       <AccentSlashes className="absolute right-[112px] bottom-[280px] scale-90" />
 
-      <div className="relative z-10 px-16 pt-[72px] text-center">
+      <div className="relative z-10 px-16 pt-[128px] text-center">
         <div className="mx-auto inline-flex items-center rounded-full bg-yellow-400 px-6 py-2 text-[20px] font-black uppercase tracking-[0.28em] text-slate-950">
           {team?.name || 'Sele\u00e7\u00e3o'}
         </div>
-        <h1 className="mx-auto mt-8 max-w-[980px] text-[78px] font-black leading-[0.96] tracking-tight text-white">
+        <h1 className="mx-auto mt-8 max-w-[900px] text-[66px] font-black leading-[0.94] tracking-tight text-white">
           {'Minha escala\u00e7\u00e3o no'}
-          <span className="mt-2 block text-[88px] text-yellow-400">{'Escale Sua Sele\u00e7\u00e3o'}</span>
+          <span className="mt-2 block text-[80px] text-yellow-400">{'Escale Sua Sele\u00e7\u00e3o'}</span>
         </h1>
-        <div className="mx-auto mt-8 h-[7px] w-[320px] rounded-full bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.5)]" />
+        <div className="mx-auto mt-7 h-[7px] w-[290px] rounded-full bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.5)]" />
       </div>
 
-      <div className="relative z-10 mx-auto mt-9 flex w-[860px] items-center justify-between rounded-[32px] border border-white/10 bg-white/5 px-8 py-7">
+      <div className="relative z-10 mx-auto mt-8 flex w-[820px] items-center justify-between rounded-[30px] border border-white/10 bg-white/5 px-8 py-6">
         <div>
           <div className="text-[18px] font-black uppercase tracking-[0.2em] text-yellow-300">Jogo selecionado</div>
-          <div className="mt-3 text-[38px] font-black leading-tight">{matchLabel}</div>
+          <div className="mt-3 text-[34px] font-black leading-tight">{matchLabel}</div>
         </div>
-        <div className="max-w-[280px] text-right">
+        <div className="max-w-[250px] text-right">
           <div className="text-[18px] font-black uppercase tracking-[0.2em] text-yellow-300">Data</div>
-          <div className="mt-3 text-[24px] font-bold leading-tight text-slate-100">{matchDateLabel}</div>
-          <div className="mt-3 text-[18px] font-bold text-slate-300">Esquema {formation}</div>
+          <div className="mt-3 text-[22px] font-bold leading-tight text-slate-100">{matchDateLabel}</div>
+          <div className="mt-3 text-[17px] font-bold text-slate-300">Esquema {formation}</div>
         </div>
       </div>
 
@@ -97,12 +97,12 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
                 <div
                   key={position.id}
                   className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-[18px] border-[2px] border-yellow-400 bg-[#04103b] px-3 py-[10px] text-center shadow-[0_14px_26px_rgba(2,6,23,0.35)]"
-                  style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 96 }}
+                  style={{ left: `${position.x}%`, top: `${position.y}%`, minWidth: 108 }}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 text-[17px] font-black text-slate-950">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-yellow-400 text-[18px] font-black text-slate-950">
                     {player ? initials(player) : position.label}
                   </div>
-                  <div className="max-w-[88px] truncate text-[11px] font-black text-white">{player || position.label}</div>
+                  <div className="max-w-[98px] truncate text-[12px] font-black text-white">{player || position.label}</div>
                 </div>
               );
             })}
@@ -110,19 +110,21 @@ export default function ShareStory({ team, formation, positions, lineup, matchLa
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto mt-[38px] flex w-[720px] items-center gap-7 rounded-[36px] bg-yellow-400 px-8 py-6 text-slate-950 shadow-[0_0_28px_rgba(250,204,21,0.38)]">
-        <div className="flex h-[92px] w-[92px] items-center justify-center rounded-full bg-[#03123d] shadow-inner">
-          <ShareArrowIcon />
+      <div className="absolute inset-x-0 bottom-[42px] z-10 flex flex-col items-center">
+        <div className="flex w-[700px] items-center gap-6 rounded-[34px] bg-yellow-400 px-8 py-6 text-slate-950 shadow-[0_0_28px_rgba(250,204,21,0.38)]">
+          <div className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[#03123d] shadow-inner">
+            <ShareArrowIcon />
+          </div>
+          <p className="text-[38px] font-black leading-[1.02]">
+            {'Fa\u00e7a a sua tamb\u00e9m'}
+            <span className="block">e compartilhe.</span>
+          </p>
         </div>
-        <p className="text-[40px] font-black leading-[1.02]">
-          {'Fa\u00e7a a sua tamb\u00e9m'}
-          <span className="block">e compartilhe.</span>
-        </p>
-      </div>
 
-      <div className="relative z-10 mt-[34px] flex flex-col items-center justify-center">
-        <BrandLogo size={82} />
-        <div className="mt-5 text-[24px] font-bold tracking-[0.12em] text-slate-300">www.EscaleSuaSelecao.com.br</div>
+        <div className="mt-8 flex flex-col items-center justify-center">
+          <BrandLogo size={70} textClassName="text-[28px] font-black tracking-tight text-white" />
+          <div className="mt-4 text-[18px] font-bold tracking-[0.12em] text-slate-300">www.EscaleSuaSelecao.com.br</div>
+        </div>
       </div>
     </div>
   );

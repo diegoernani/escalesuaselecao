@@ -253,7 +253,7 @@ async function shareImageOrDownload(cardElement, team, match, teamsById) {
   const text = buildShareText(team, match, teamsById);
   const blob = await toBlob(cardElement, {
     cacheBust: true,
-    pixelRatio: 2,
+    pixelRatio: 1,
     backgroundColor: '#020617',
   });
 
