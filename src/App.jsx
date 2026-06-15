@@ -117,6 +117,10 @@ const fallbackMatches = [
 const toPosition = ([x, y, label, id]) => ({ x, y, label, id });
 const fallbackTeamSlugById = Object.fromEntries(fallbackTeams.map((team) => [team.id, team.slug]));
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function buildFallbackCatalog() {
   return {
     teams: fallbackTeams,
@@ -291,6 +295,7 @@ export default function App() {
   const [formation, setFormation] = useState('4-3-3');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lineup, setLineup] = useState({});
+  const [lineupAdjustments, setLineupAdjustments] = useState({});
   const [saved, setSaved] = useState(false);
   const [restoredLineup, setRestoredLineup] = useState(false);
   const [status, setStatus] = useState('');
@@ -401,6 +406,9 @@ export default function App() {
       if (!active) return;
 
       if (savedLineupError) {
+        setLineup({});
+        setLineupAdjustments({});
+        setSelectedPlayer(null);
         setSaved(false);
         setRestoredLineup(false);
         setStatus(`Nao foi possivel recuperar sua ultima escalacao: ${savedLineupError.message}`);
@@ -409,6 +417,7 @@ export default function App() {
 
       if (!savedLineupRow) {
         setLineup({});
+        setLineupAdjustments({});
         setSelectedPlayer(null);
         setSaved(false);
         setRestoredLineup(false);
@@ -418,12 +427,15 @@ export default function App() {
 
       const { data: savedPlayerRows, error: savedPlayersError } = await supabase
         .from('lineup_players')
-        .select('position_id, player_name')
+        .select('position_id, player_name, custom_x, custom_y')
         .eq('lineup_id', savedLineupRow.id);
 
       if (!active) return;
 
       if (savedPlayersError) {
+        setLineup({});
+        setLineupAdjustments({});
+        setSelectedPlayer(null);
         setSaved(false);
         setRestoredLineup(false);
         setStatus(`Encontramos seu voto, mas nao foi possivel carregar os jogadores: ${savedPlayersError.message}`);
@@ -432,9 +444,15 @@ export default function App() {
 
       const nextFormation = formationData[savedLineupRow.formation] ? savedLineupRow.formation : '4-3-3';
       const nextLineup = Object.fromEntries((savedPlayerRows || []).filter((row) => row.player_name).map((row) => [row.position_id, row.player_name]));
+      const nextAdjustments = Object.fromEntries(
+        (savedPlayerRows || [])
+          .filter((row) => row.custom_x != null && row.custom_y != null)
+          .map((row) => [row.position_id, { x: Number(row.custom_x), y: Number(row.custom_y) }])
+      );
 
       setFormation(nextFormation);
       setLineup(nextLineup);
+      setLineupAdjustments(nextAdjustments);
       setSelectedPlayer(null);
       setSaved(true);
       setRestoredLineup(true);
@@ -538,6 +556,7 @@ export default function App() {
   function resetLineup(nextFormation = formation) {
     setFormation(nextFormation);
     setLineup({});
+    setLineupAdjustments({});
     setSelectedPlayer(null);
     setSaved(false);
     setRestoredLineup(false);
@@ -547,10 +566,20 @@ export default function App() {
   function clickPosition(positionId) {
     if (!selectedPlayer) return;
 
+    const existingPositionId = Object.entries(lineup).find(([, player]) => player === selectedPlayer)?.[0] || null;
+
     setLineup((current) => {
       const withoutRepeated = Object.fromEntries(Object.entries(current).filter(([, player]) => player !== selectedPlayer));
       return { ...withoutRepeated, [positionId]: selectedPlayer };
     });
+
+    if (existingPositionId && existingPositionId !== positionId) {
+      setLineupAdjustments((current) => {
+        const next = { ...current };
+        delete next[existingPositionId];
+        return next;
+      });
+    }
 
     setSelectedPlayer(null);
     setSaved(false);
@@ -564,6 +593,27 @@ export default function App() {
       delete copy[positionId];
       return copy;
     });
+    setLineupAdjustments((current) => {
+      const next = { ...current };
+      delete next[positionId];
+      return next;
+    });
+    setSaved(false);
+    setRestoredLineup(false);
+    setStatus('');
+  }
+
+  function movePlayer(positionId, coordinates) {
+    const { x, y } = coordinates || {};
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+
+    setLineupAdjustments((current) => ({
+      ...current,
+      [positionId]: {
+        x: clamp(Number(x.toFixed(2)), 0, 100),
+        y: clamp(Number(y.toFixed(2)), 0, 100),
+      },
+    }));
     setSaved(false);
     setRestoredLineup(false);
     setStatus('');
@@ -624,6 +674,8 @@ export default function App() {
       position: position.label,
       position_id: position.id,
       player_name: lineup[position.id],
+      custom_x: lineupAdjustments[position.id]?.x ?? null,
+      custom_y: lineupAdjustments[position.id]?.y ?? null,
     }));
 
     const { error: playersError } = await supabase.from('lineup_players').insert(rows);
@@ -784,9 +836,11 @@ export default function App() {
               teamsById={teamsById}
               positions={positions}
               lineup={lineup}
+              lineupAdjustments={lineupAdjustments}
               selectedPlayer={selectedPlayer}
               formation={formation}
               clickPosition={clickPosition}
+              movePlayer={movePlayer}
               removePlayer={removePlayer}
             />
             <LineupPanel
@@ -795,6 +849,7 @@ export default function App() {
               teamsById={teamsById}
               positions={positions}
               lineup={lineup}
+              lineupAdjustments={lineupAdjustments}
               formation={formation}
               complete={complete}
               saved={saved}
@@ -976,7 +1031,76 @@ function UpcomingMatchesPanel({ team, teamsById, nextMatch, currentMatch, matche
   );
 }
 
-function Field({ team, match, teamsById, positions, lineup, selectedPlayer, formation, clickPosition, removePlayer }) {
+function Field({ team, match, teamsById, positions, lineup, lineupAdjustments, selectedPlayer, formation, clickPosition, movePlayer, removePlayer }) {
+  const fieldRef = useRef(null);
+  const dragStateRef = useRef(null);
+  const movePlayerRef = useRef(movePlayer);
+  const [draggingPositionId, setDraggingPositionId] = useState(null);
+
+  useEffect(() => {
+    movePlayerRef.current = movePlayer;
+  }, [movePlayer]);
+
+  useEffect(() => {
+    function handlePointerMove(event) {
+      const dragState = dragStateRef.current;
+      if (!dragState) return;
+
+      const centerX = event.clientX - dragState.fieldRect.left - dragState.pointerOffsetX;
+      const centerY = event.clientY - dragState.fieldRect.top - dragState.pointerOffsetY;
+      const minX = (dragState.cardWidth / 2 / dragState.fieldRect.width) * 100;
+      const maxX = 100 - minX;
+      const minY = (dragState.cardHeight / 2 / dragState.fieldRect.height) * 100;
+      const maxY = 100 - minY;
+
+      movePlayerRef.current(dragState.positionId, {
+        x: clamp((centerX / dragState.fieldRect.width) * 100, minX, maxX),
+        y: clamp((centerY / dragState.fieldRect.height) * 100, minY, maxY),
+      });
+    }
+
+    function stopDragging() {
+      dragStateRef.current = null;
+      setDraggingPositionId(null);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopDragging);
+    window.addEventListener('pointercancel', stopDragging);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+      window.removeEventListener('pointercancel', stopDragging);
+    };
+  }, []);
+
+  function startDragging(event, position) {
+    const player = lineup[position.id];
+    const fieldElement = fieldRef.current;
+    if (!player || !fieldElement) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const fieldRect = fieldElement.getBoundingClientRect();
+    const cardRect = event.currentTarget.getBoundingClientRect();
+    const currentX = lineupAdjustments[position.id]?.x ?? position.x;
+    const currentY = lineupAdjustments[position.id]?.y ?? position.y;
+    const centerX = (currentX / 100) * fieldRect.width;
+    const centerY = (currentY / 100) * fieldRect.height;
+
+    dragStateRef.current = {
+      positionId: position.id,
+      fieldRect,
+      cardWidth: cardRect.width,
+      cardHeight: cardRect.height,
+      pointerOffsetX: event.clientX - fieldRect.left - centerX,
+      pointerOffsetY: event.clientY - fieldRect.top - centerY,
+    };
+    setDraggingPositionId(position.id);
+  }
+
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/5 p-3 shadow-2xl md:p-5">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -988,10 +1112,10 @@ function Field({ team, match, teamsById, positions, lineup, selectedPlayer, form
         </div>
         <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300">
           <MousePointerClick size={16} />
-          Clique na posicao para colocar o jogador
+          Clique em uma posicao vazia e arraste os jogadores para organizar
         </div>
       </div>
-      <div className="relative mx-auto aspect-[10/14] max-h-[760px] overflow-hidden rounded-[2rem] border-4 border-white/80 bg-emerald-700 shadow-inner">
+      <div ref={fieldRef} className="relative mx-auto aspect-[10/14] max-h-[760px] overflow-hidden rounded-[2rem] border-4 border-white/80 bg-emerald-700 shadow-inner">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_50%,transparent_50%)] bg-[length:80px_80px]" />
         <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 bg-white/80" />
         <div className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white/80" />
@@ -999,18 +1123,48 @@ function Field({ team, match, teamsById, positions, lineup, selectedPlayer, form
         <div className="absolute bottom-0 left-1/2 h-28 w-56 -translate-x-1/2 rounded-t-3xl border-x-4 border-t-4 border-white/80" />
         {positions.map((position) => {
           const player = lineup[position.id];
+          const currentX = lineupAdjustments[position.id]?.x ?? position.x;
+          const currentY = lineupAdjustments[position.id]?.y ?? position.y;
+
+          if (!player) {
+            return (
+              <button
+                key={`${formation}-${position.id}`}
+                onClick={() => clickPosition(position.id)}
+                className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition-colors md:min-w-28 md:px-3 ${selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:bg-yellow-200' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`}
+                style={{ left: `${position.x}%`, top: `${position.y}%` }}
+              >
+                <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-black md:h-12 md:w-12 ${selectedPlayer ? 'bg-slate-950 text-white' : 'bg-slate-950/80 text-white'}`}>
+                  {position.label}
+                </span>
+                <span className="max-w-24 truncate text-xs font-black md:max-w-28 md:text-sm">{position.label}</span>
+              </button>
+            );
+          }
+
           return (
-            <button
+            <div
               key={`${formation}-${position.id}`}
-              onClick={() => (player ? removePlayer(position.id) : clickPosition(position.id))}
-              className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center shadow-xl transition-colors md:min-w-28 md:px-3 ${player ? 'border-yellow-300 bg-slate-950 text-white' : selectedPlayer ? 'border-yellow-300 bg-yellow-300 text-slate-950 hover:bg-yellow-200' : 'border-white/40 bg-white/15 text-white hover:bg-white/25'}`}
-              style={{ left: `${position.x}%`, top: `${position.y}%` }}
+              className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-yellow-300 bg-slate-950 text-white shadow-xl transition-transform ${draggingPositionId === position.id ? 'scale-[1.03] cursor-grabbing' : 'cursor-grab'}`}
+              style={{ left: `${currentX}%`, top: `${currentY}%`, touchAction: 'none' }}
+              onPointerDown={(event) => startDragging(event, position)}
             >
-              <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-black md:h-12 md:w-12 ${player ? 'bg-yellow-400 text-slate-950' : 'bg-slate-950/80 text-white'}`}>
-                {player ? initials(player) : position.label}
-              </span>
-              <span className="max-w-24 truncate text-xs font-black md:max-w-28 md:text-sm">{player || position.label}</span>
-            </button>
+              <button
+                type="button"
+                aria-label={`Remover ${player}`}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => removePlayer(position.id)}
+                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-yellow-300 bg-slate-950 text-[11px] font-black text-yellow-300 shadow-lg hover:bg-slate-900"
+              >
+                X
+              </button>
+              <div className="flex flex-col items-center gap-1 px-2 py-2 text-center md:min-w-28 md:px-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 text-sm font-black text-slate-950 md:h-12 md:w-12">
+                  {initials(player)}
+                </span>
+                <span className="max-w-24 truncate text-xs font-black md:max-w-28 md:text-sm">{player}</span>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -1018,8 +1172,13 @@ function Field({ team, match, teamsById, positions, lineup, selectedPlayer, form
   );
 }
 
-function LineupPanel({ team, match, teamsById, positions, lineup, formation, complete, saved, restoredLineup, logged, openAuth, status, saveLineup, setStatus }) {
+function LineupPanel({ team, match, teamsById, positions, lineup, lineupAdjustments, formation, complete, saved, restoredLineup, logged, openAuth, status, saveLineup, setStatus }) {
   const storyRef = useRef(null);
+  const sharePositions = positions.map((position) => ({
+    ...position,
+    x: lineupAdjustments[position.id]?.x ?? position.x,
+    y: lineupAdjustments[position.id]?.y ?? position.y,
+  }));
 
   function requireLogin(actionLabel) {
     if (logged) return true;
@@ -1046,7 +1205,7 @@ function LineupPanel({ team, match, teamsById, positions, lineup, formation, com
           <ShareStory
             team={team}
             formation={formation}
-            positions={positions}
+            positions={sharePositions}
             lineup={lineup}
             matchLabel={buildMatchLabel(match, teamsById)}
             matchDateLabel={formatMatchDateTime(match?.match_at)}

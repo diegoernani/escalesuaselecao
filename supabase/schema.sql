@@ -79,9 +79,27 @@ create table if not exists public.lineup_players (
   position text not null,
   position_id text not null,
   player_name text not null,
+  custom_x double precision,
+  custom_y double precision,
   created_at timestamptz not null default now(),
   unique (lineup_id, position_id)
 );
+
+alter table public.lineup_players
+  add column if not exists custom_x double precision;
+
+alter table public.lineup_players
+  add column if not exists custom_y double precision;
+
+alter table public.lineup_players
+  drop constraint if exists lineup_players_custom_coordinates_check;
+
+alter table public.lineup_players
+  add constraint lineup_players_custom_coordinates_check
+  check (
+    (custom_x is null or custom_x between 0 and 100)
+    and (custom_y is null or custom_y between 0 and 100)
+  );
 
 insert into public.national_teams (slug, name, short_name, fifa_code)
 values
