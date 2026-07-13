@@ -2,8 +2,8 @@
 
 App web para montar e compartilhar escalações.
 
-## Demo
-https://project-6jmwi.vercel.app
+## Site
+https://www.escalesuaselecao.com.br
 
 ## Stack
 - React + Vite
